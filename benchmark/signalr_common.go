@@ -16,7 +16,7 @@ import (
 )
 
 type SignalrServiceHandshake struct {
-	ServiceUrl string `json:"serviceUrl"`
+	ServiceUrl string `json:"url"`
 	JwtBearer  string `json:"accessToken"`
 }
 
@@ -40,7 +40,7 @@ func (s *SignalrCoreCommon) SignalrCoreBaseConnect(protocol string) (session *Se
 	}
 
 	s.counter.Stat("connection:inprogress", 1)
-	wsURL := "ws://" + s.host + "/chat"
+	wsURL := "ws://" + s.host
 	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		s.LogError("connection:error", id, "Failed to connect to websocket", err)
@@ -85,7 +85,7 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 		return
 	}
 
-	negotiateResponse, err := http.Get("http://" + s.host + "/signalr/chat")
+	negotiateResponse, err := http.Get("http://" + s.host + "/negotiate")
 	if err != nil {
 		s.LogError("connection:error", id, "Failed to negotiate with the server", err)
 		return
