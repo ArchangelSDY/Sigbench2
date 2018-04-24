@@ -78,7 +78,7 @@ go build -v -o websocket-bench aspnet.com
 
 
    ```bash
-   ./websocket-bench -m master -a "localhost:7000" -s "172.17.8.4:5050" -t signalr:json:echo -c json-echo-cmds.txt -o signalr_json_echo
+   ./websocket-bench -m master -a "localhost:7000" -s "172.17.8.4:5050/chat" -t signalr:json:echo -c json-echo-cmds.txt -o signalr_json_echo
    ```
    Here is the command list of json-echo-cmds.txt:
 
