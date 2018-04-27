@@ -426,17 +426,23 @@ func (c *Controller) connect(parts []string) error {
 		return fmt.Errorf("ERROR: connection per second is negative")
 	}
 
+	var wg sync.WaitGroup
 	for i, agentProxy := range c.Agents {
 		agentConnection := c.SplitNumber(connection, i)
 		agentConnPerSec := c.SplitNumber(connPerSecond, i)
-		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
-			Command:   "EnsureConnection",
-			Arguments: []string{strconv.Itoa(agentConnection), strconv.Itoa(agentConnPerSec)},
-		}, nil)
-		if err != nil {
-			fmt.Errorf("ERROR[%s]: %v\n", agentProxy.Address, err)
-		}
+		wg.Add(1)
+		go func() {
+			err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
+				Command:   "EnsureConnection",
+				Arguments: []string{strconv.Itoa(agentConnection), strconv.Itoa(agentConnPerSec)},
+			}, nil)
+			if err != nil {
+				fmt.Errorf("ERROR[%s]: %v\n", agentProxy.Address, err)
+			}
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 	return nil
 }
 

@@ -101,7 +101,13 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 	}
 
 	var httpPrefix = regexp.MustCompile("^https?://")
-	baseURL := httpPrefix.ReplaceAllString(handshake.ServiceUrl, "ws://")
+	var ws string
+	if s.useWss {
+		ws = "wss://"
+	} else {
+		ws = "ws://"
+	}
+	baseURL := httpPrefix.ReplaceAllString(handshake.ServiceUrl, ws)
 	wsURL := baseURL + "&access_token=" + handshake.JwtBearer
 
 	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
@@ -151,7 +157,6 @@ func (s *SignalrCoreCommon) ParseBinaryMessage(bytes []byte) ([]byte, error) {
 
 	return bytes[numBytes : numBytes+msgLen], nil
 }
-
 
 func (s *SignalrCoreCommon) ProcessJsonLatency(target string) {
 	for msgReceived := range s.received {

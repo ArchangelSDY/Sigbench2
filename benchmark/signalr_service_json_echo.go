@@ -22,7 +22,7 @@ func (s *SignalrServiceJsonEcho) Name() string {
 
 func (s *SignalrServiceJsonEcho) Setup(config *Config) error {
 	s.host = config.Host
-
+	s.useWss = config.UseWss
 	s.counter = util.NewCounter()
 	s.sessions = make([]*Session, 0, 20000)
 
@@ -32,7 +32,6 @@ func (s *SignalrServiceJsonEcho) Setup(config *Config) error {
 
 	return nil
 }
-
 
 func (s *SignalrServiceJsonEcho) DoEnsureConnection(count int, conPerSec int) error {
 	return s.doEnsureConnection(count, conPerSec, func(withSessions *WithSessions) (*Session, error) {

@@ -33,7 +33,6 @@ func (s *SignalrCoreMsgpackEcho) Setup(config *Config) error {
 	return nil
 }
 
-
 func (s *SignalrCoreMsgpackEcho) DoEnsureConnection(count int, conPerSec int) error {
 	return s.doEnsureConnection(count, conPerSec, func(withSessions *WithSessions) (*Session, error) {
 		return s.SignalrCoreMsgPackConnect()

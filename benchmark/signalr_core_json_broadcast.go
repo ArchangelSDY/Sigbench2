@@ -20,7 +20,6 @@ func (s *SignalrCoreJsonBroadcast) Name() string {
 	return "SignalR Core Connection"
 }
 
-
 func (s *SignalrCoreJsonBroadcast) Setup(config *Config) error {
 	s.host = config.Host
 	s.counter = util.NewCounter()

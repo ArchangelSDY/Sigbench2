@@ -16,6 +16,7 @@ type Config struct {
 	Subject string
 	CmdFile string
 	OutDir  string
+	UseWss  bool
 }
 
 // Subject defines the interface for a test subject.
@@ -63,8 +64,8 @@ func (s *WithCounter) DoClear(prefix string) error {
 }
 
 type WithSessions struct {
-	host string
-
+	host         string
+	useWss       bool
 	sessions     []*Session
 	sessionsLock sync.Mutex
 
@@ -83,23 +84,29 @@ func (s *WithSessions) doEnsureConnection(count int, conPerSec int, builder func
 	if diff > 0 {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		var wg sync.WaitGroup
 		for _ = range ticker.C {
 			nextBatch := diff
 			if nextBatch > conPerSec {
 				nextBatch = conPerSec
 			}
 			for i := 0; i < nextBatch; i++ {
-				session, err := builder(s)
-				if err != nil {
-					return err
-				}
-				s.sessions = append(s.sessions, session)
+				wg.Add(1)
+				go func() {
+					session, err := builder(s)
+					wg.Done()
+					if err != nil {
+						log.Println("Fail to build connection: ", err)
+					}
+					s.sessions = append(s.sessions, session)
+				}()
 			}
 			diff -= nextBatch
 			if diff <= 0 {
 				break
 			}
 		}
+		wg.Wait()
 	} else {
 		log.Printf("Reduce clients count from %d to %d", len(s.sessions), count)
 		extra := s.sessions[count:]

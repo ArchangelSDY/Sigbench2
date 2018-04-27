@@ -6,7 +6,6 @@ import (
 	"aspnet.com/util"
 )
 
-
 var _ Subject = (*SignalrServiceMsgpackBroadcast)(nil)
 
 type SignalrServiceMsgpackBroadcast struct {
@@ -23,7 +22,7 @@ func (s *SignalrServiceMsgpackBroadcast) Name() string {
 
 func (s *SignalrServiceMsgpackBroadcast) Setup(config *Config) error {
 	s.host = config.Host
-
+	s.useWss = config.UseWss
 	s.counter = util.NewCounter()
 	s.sessions = make([]*Session, 0, 20000)
 
