@@ -23,6 +23,7 @@ var opts struct {
 	Server        string `short:"s" long:"server" description:"Websocket server host:port"`
 	Subject       string `short:"t" long:"test-subject" description:"Test subject"`
 	CmdFile       string `short:"c" long:"cmd-file" description:"Command file"`
+	UseWss        bool   `short:"u" long:"use-security-connection" description:"wss connection"`
 }
 
 func startMaster() {
@@ -55,21 +56,22 @@ func startMaster() {
 		Subject: opts.Subject,
 		CmdFile: opts.CmdFile,
 		OutDir:  opts.OutputDir,
+		UseWss:  opts.UseWss,
 	})
 }
 
 func genPidFile(pidfile string) {
-        f, _ := os.Create(pidfile)
-        defer func() {
+	f, _ := os.Create(pidfile)
+	defer func() {
 		cerr := f.Close()
 		if cerr != nil {
 			log.Fatalln("Failed to close the pid file: ", cerr)
 		}
 	}()
-        _, err := f.WriteString(fmt.Sprintf("%d", os.Getpid()))
-        if err != nil {
-                log.Println("Fail to write pidfile")
-        }
+	_, err := f.WriteString(fmt.Sprintf("%d", os.Getpid()))
+	if err != nil {
+		log.Println("Fail to write pidfile")
+	}
 }
 func startAgent() {
 	rpc.RegisterName("Agent", new(agent.Controller))
