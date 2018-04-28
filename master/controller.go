@@ -431,16 +431,16 @@ func (c *Controller) connect(parts []string) error {
 		agentConnection := c.SplitNumber(connection, i)
 		agentConnPerSec := c.SplitNumber(connPerSecond, i)
 		wg.Add(1)
-		go func() {
-			err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
+		go func(aProxy *AgentProxy) {
+			err := aProxy.Client.Call("Agent.Invoke", &agent.Invocation{
 				Command:   "EnsureConnection",
 				Arguments: []string{strconv.Itoa(agentConnection), strconv.Itoa(agentConnPerSec)},
 			}, nil)
 			if err != nil {
-				fmt.Errorf("ERROR[%s]: %v\n", agentProxy.Address, err)
+				fmt.Errorf("ERROR[%s]: %v\n", aProxy.Address, err)
 			}
 			wg.Done()
-		}()
+		}(agentProxy)
 	}
 	wg.Wait()
 	return nil
