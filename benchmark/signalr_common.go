@@ -194,6 +194,8 @@ func (s *SignalrCoreCommon) ProcessJsonLatency(target string) {
 					s.LogError("message:decode_error", msgReceived.ClientID, "Failed to decode start timestamp", err)
 					continue
 				}
+				s.counter.Stat("message:received", 1)
+				s.counter.Stat("message:recvSize", int64(len(msg)))
 				s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
 			}
 		}
@@ -220,6 +222,8 @@ func (s *SignalrCoreCommon) ProcessMsgPackLatency(target string) {
 				s.LogError("message:decode_error", msgReceived.ClientID, "Failed to decode start timestamp", err)
 				continue
 			}
+			s.counter.Stat("message:received", 1)
+			s.counter.Stat("message:recvSize", int64(len(msg)))
 			s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
 		}
 	}

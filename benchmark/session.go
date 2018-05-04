@@ -144,8 +144,8 @@ func (s *Session) receivedWorker(id string) {
 			}
 			break
 		}
-		s.counter.Stat("message:received", 1)
-		s.counter.Stat("message:recvSize", int64(len(msg)))
+		//s.counter.Stat("message:received", 1)
+		//s.counter.Stat("message:recvSize", int64(len(msg)))
 		if !s.recvHandShake {
 			dataArray := bytes.Split(msg, []byte{0x1e})
 			if len(dataArray[0]) == 2 {
