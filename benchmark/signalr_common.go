@@ -143,7 +143,6 @@ func (s *SignalrCoreCommon) ParseBinaryMessage(bytes []byte) ([]byte, error) {
 	moreBytes := true
 	msgLen := 0
 	numBytes := 0
-	//fmt.Printf("%x %x\n", bytes[0], bytes[1])
 	for moreBytes && numBytes < len(bytes) && numBytes < 5 {
 		byteRead := bytes[numBytes]
 		msgLen = msgLen | int(uint(byteRead&0x7F)<<numBitsToShift[numBytes])
@@ -164,8 +163,8 @@ func (s *SignalrCoreCommon) ProcessJsonLatency(target string) {
 		// Split them and remove '0x1e' terminator.
 		dataArray := bytes.Split(msgReceived.Content, []byte{0x1e})
 		for _, msg := range dataArray {
-			if len(msg) == 0 || len(msg) == 2 {
-				// ignore the empty msg and handshake response
+			if len(msg) == 0 {
+				// ignore empty msg caused by split
 				continue
 			}
 			var common SignalRCommon
@@ -223,7 +222,7 @@ func (s *SignalrCoreCommon) ProcessMsgPackLatency(target string) {
 				continue
 			}
 			s.counter.Stat("message:received", 1)
-			s.counter.Stat("message:recvSize", int64(len(msg)))
+			s.counter.Stat("message:recvSize", int64(len(msgReceived.Content)))
 			s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
 		}
 	}

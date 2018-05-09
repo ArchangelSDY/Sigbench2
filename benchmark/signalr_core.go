@@ -22,7 +22,6 @@ type SignalRCommon struct {
 }
 
 type SignalRCoreInvocation struct {
-	InvocationId string   `json:"invocationId"`
 	Type         int      `json:"type"`
 	Target       string   `json:"target"`
 	Arguments    []string `json:"arguments"`
@@ -73,7 +72,6 @@ var _ MessageGenerator = (*SignalRCoreTextMessageGenerator)(nil)
 func (g *SignalRCoreTextMessageGenerator) Generate(uid string, invocationId int64) Message {
 	msg, err := json.Marshal(&SignalRCoreInvocation{
 		Type: 1,
-		//InvocationId: strconv.FormatInt(invocationId, 10),
 		Target: g.Target,
 		Arguments: []string{
 			uid,
@@ -117,7 +115,6 @@ func (g MessagePackMessageGenerator) Generate(uid string, invocationId int64) Me
 	invocation := MsgpackInvocation{
 		MessageType: 1,
 		Header:      map[string]string{},
-		//InvocationID: nil, //strconv.FormatInt(invocationId, 10),
 		Target: g.Target,
 		Params: []string{
 			uid,
