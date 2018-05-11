@@ -62,42 +62,6 @@ func (w *WithInterval) Interval() time.Duration {
 	return w.interval
 }
 
-type SignalRCoreTextMessageGenerator struct {
-	WithInterval
-	Target string
-}
-
-var _ MessageGenerator = (*SignalRCoreTextMessageGenerator)(nil)
-
-func GenerateJsonRequest(target string, arguments []string) Message {
-	msg, err := json.Marshal(&SignalRCoreInvocation{
-		Type:      1,
-		Target:    target,
-		Arguments: arguments,
-	})
-	if err != nil {
-		log.Println("ERROR: failed to encoding SignalR message", err)
-		return nil
-	}
-	msg = append(msg, SignalRMessageTerminator)
-	return PlainMessage{websocket.TextMessage, msg}
-}
-
-func (g *SignalRCoreTextMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
-	arguments := []string{
-		uid,
-		strconv.FormatInt(time.Now().UnixNano(), 10),
-	}
-	return GenerateJsonRequest(g.Target, arguments)
-}
-
-type MessagePackMessageGenerator struct {
-	WithInterval
-	Target string
-}
-
-var _ MessageGenerator = (*MessagePackMessageGenerator)(nil)
-
 func appendLength(bytes []byte) []byte {
 	buffer := make([]byte, 0, 5+len(bytes))
 	length := len(bytes)
@@ -116,6 +80,20 @@ func appendLength(bytes []byte) []byte {
 	return buffer
 }
 
+func GenerateJsonRequest(target string, arguments []string) Message {
+	msg, err := json.Marshal(&SignalRCoreInvocation{
+		Type:      1,
+		Target:    target,
+		Arguments: arguments,
+	})
+	if err != nil {
+		log.Println("ERROR: failed to encoding SignalR message", err)
+		return nil
+	}
+	msg = append(msg, SignalRMessageTerminator)
+	return PlainMessage{websocket.TextMessage, msg}
+}
+
 func GenerateMessagePackRequest(target string, arguments []string) Message {
 	invocation := MsgpackInvocation{
 		MessageType: 1,
@@ -132,9 +110,61 @@ func GenerateMessagePackRequest(target string, arguments []string) Message {
 	return PlainMessage{websocket.BinaryMessage, msg}
 }
 
-func (g MessagePackMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
+type SignalRCoreTextMessageGenerator struct {
+	WithInterval
+	Target string
+}
+
+var _ MessageGenerator = (*SignalRCoreTextMessageGenerator)(nil)
+
+func (g *SignalRCoreTextMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
+	arguments := []string{
+		uid,
+		strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	return GenerateJsonRequest(g.Target, arguments)
+}
+
+type JsonGroupSendMessageGenerator struct {
+	WithInterval
+	Target string
+}
+
+var _ MessageGenerator = (*JsonGroupSendMessageGenerator)(nil)
+
+func (g *JsonGroupSendMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
+	arguments := []string{
+		groupName,
+		strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	return GenerateJsonRequest(g.Target, arguments)
+}
+
+type MessagePackMessageGenerator struct {
+	WithInterval
+	Target string
+}
+
+var _ MessageGenerator = (*MessagePackMessageGenerator)(nil)
+
+func (g *MessagePackMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
 	params := []string{
 		uid,
+		strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	return GenerateMessagePackRequest(g.Target, params)
+}
+
+type MessagePackGroupSendMessageGenerator struct {
+	WithInterval
+	Target string
+}
+
+var _ MessageGenerator = (*MessagePackGroupSendMessageGenerator)(nil)
+
+func (g *MessagePackGroupSendMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
+	params := []string{
+		groupName,
 		strconv.FormatInt(time.Now().UnixNano(), 10),
 	}
 	return GenerateMessagePackRequest(g.Target, params)

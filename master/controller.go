@@ -307,6 +307,14 @@ func (c *Controller) batchRun(config *benchmark.Config) error {
 				fmt.Println(err)
 				return err
 			}
+		case "gs":
+			fallthrough
+		case "GroupSend":
+			err = c.groupSend(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
 		case "s":
 			fallthrough
 		case "Send":
@@ -384,6 +392,14 @@ func (c *Controller) interactiveRun() error {
 			fallthrough
 		case "EnsureConnection":
 			err = c.connect(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+		case "gs":
+			fallthrough
+		case "GroupSend":
+			err = c.groupSend(parts)
 			if err != nil {
 				fmt.Println(err)
 				break
@@ -513,7 +529,16 @@ func (c *Controller) leaveGroup() error {
 	return nil
 }
 
+
+func (c *Controller) groupSend(parts []string) error {
+	return c.internalSend(parts, "GroupSend")
+}
+
 func (c *Controller) send(parts []string) error {
+	return c.internalSend(parts, "Send")
+}
+
+func (c *Controller) internalSend(parts []string, cmd string) error {
 	partsLen := len(parts)
 	if partsLen < 2 || partsLen > 3 {
 		return fmt.Errorf("SYNTAX: s <clients> [interval_millis]")
@@ -535,7 +560,7 @@ func (c *Controller) send(parts []string) error {
 	for i, agentProxy := range c.Agents {
 		agentClients := c.SplitNumber(clients, i)
 		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
-			Command:   "Send",
+			Command:   cmd,
 			Arguments: []string{strconv.Itoa(agentClients), strconv.Itoa(interval)},
 		}, nil)
 		if err != nil {

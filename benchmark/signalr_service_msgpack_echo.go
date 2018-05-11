@@ -36,6 +36,10 @@ func (s *SignalrServiceMsgpackEcho) DoEnsureConnection(count int, conPerSec int)
 	})
 }
 
+func (s *SignalrServiceMsgpackEcho) DoGroupSend(clients int, intervalMillis int) error {
+	return nil
+}
+
 func (s *SignalrServiceMsgpackEcho) DoSend(clients int, intervalMillis int) error {
 	return s.doSend(clients, intervalMillis, &MessagePackMessageGenerator{
 		WithInterval: WithInterval{

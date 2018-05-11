@@ -209,7 +209,6 @@ func (s *SignalrCoreCommon) ParseBinaryMessage(bytes []byte) ([]byte, error) {
 }
 
 func (s *SignalrCoreCommon) ProcessJsonLatency(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) bool {
-	fmt.Printf("target: %s %s\n", content.Target, p.LatencyCheckTarget())
 	if content.Type == 1 && content.Target == p.LatencyCheckTarget() {
 		sendStart, err := strconv.ParseInt(content.Arguments[1], 10, 64)
 		if err != nil {
@@ -226,7 +225,6 @@ func (s *SignalrCoreCommon) ProcessJsonLatency(p ProtocolProcessing, content Sig
 
 func (s *SignalrCoreCommon) ProcessJsonJoinLeaveGroup(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) bool {
 	if content.Type == 1 {
-		fmt.Printf("group target: %s\n", content.Target)
 		if content.Target == p.JoinGroupTarget() {
 			s.counter.Stat("connection:groupjoin", 1)
 			return true

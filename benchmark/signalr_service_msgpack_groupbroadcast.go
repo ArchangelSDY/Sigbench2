@@ -55,7 +55,11 @@ func (s *SignalrServiceMsgpackGroupBroadcast) DoEnsureConnection(count int, conP
 }
 
 func (s *SignalrServiceMsgpackGroupBroadcast) DoSend(clients int, intervalMillis int) error {
-	return s.doSend(clients, intervalMillis, &MessagePackMessageGenerator{
+	return nil
+}
+
+func (s *SignalrServiceMsgpackGroupBroadcast) DoGroupSend(clients int, intervalMillis int) error {
+	return s.doSend(clients, intervalMillis, &MessagePackGroupSendMessageGenerator{
 		WithInterval: WithInterval{
 			interval: time.Millisecond * time.Duration(intervalMillis),
 		},

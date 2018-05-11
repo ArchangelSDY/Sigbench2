@@ -29,6 +29,7 @@ type Subject interface {
 
 	DoEnsureConnection(count int, conPerSec int) error
 	DoSend(clients int, intervalMillis int) error
+	DoGroupSend(clients int, intervalMillis int) error
 	DoJoinGroup(membersPerGroup int) error
 	DoClear(prefix string) error
 }
@@ -74,6 +75,7 @@ type WithSessions struct {
 	useWss       bool
 	sessions     []*Session
 	sessionsLock sync.Mutex
+	joinGroupWg  sync.WaitGroup
 
 	received chan MessageReceived
 }

@@ -32,6 +32,10 @@ func (s *SignalrCoreJsonEcho) DoEnsureConnection(count int, conPerSec int) error
 	})
 }
 
+func (s *SignalrCoreJsonEcho) DoGroupSend(clients int, intervalMillis int) error {
+	return nil
+}
+
 func (s *SignalrCoreJsonEcho) DoSend(clients int, intervalMillis int) error {
 	return s.doSend(clients, intervalMillis, &SignalRCoreTextMessageGenerator{
 		WithInterval: WithInterval{

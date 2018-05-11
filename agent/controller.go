@@ -23,6 +23,7 @@ var SubjectMap = map[string]benchmark.Subject{
 	"signalr:service:json:broadcast":      &benchmark.SignalrServiceJsonBroadcast{},
 	"signalr:service:msgpack:broadcast":   &benchmark.SignalrServiceMsgpackBroadcast{},
 	"signalr:service:json:groupbroadcast": &benchmark.SignalrServiceJsonGroupBroadcast{},
+	"signalr:service:msgpack:groupbroadcast": &benchmark.SignalrServiceMsgpackGroupBroadcast{},
 }
 
 // Controller stands for a single agent and exposes management interfaces.

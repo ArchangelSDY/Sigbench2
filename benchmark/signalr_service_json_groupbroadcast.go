@@ -41,7 +41,11 @@ func (s *SignalrServiceJsonGroupBroadcast) DoEnsureConnection(count int, conPerS
 }
 
 func (s *SignalrServiceJsonGroupBroadcast) DoSend(clients int, intervalMillis int) error {
-	return s.doSend(clients, intervalMillis, &SignalRCoreTextMessageGenerator{
+	return nil
+}
+
+func (s *SignalrServiceJsonGroupBroadcast) DoGroupSend(clients int, intervalMillis int) error {
+	return s.doSend(clients, intervalMillis, &JsonGroupSendMessageGenerator{
 		WithInterval: WithInterval{
 			interval: time.Millisecond * time.Duration(intervalMillis),
 		},
@@ -50,8 +54,8 @@ func (s *SignalrServiceJsonGroupBroadcast) DoSend(clients int, intervalMillis in
 }
 
 func (s *SignalrServiceJsonGroupBroadcast) DoJoinGroup(membersPerGroup int) error {
-	return s.doJoinGroup(membersPerGroup, func(uid string) Message {
-		arguments := []string{uid, "perf"}
+	return s.doJoinGroup(membersPerGroup, func(groupName string) Message {
+		arguments := []string{groupName, "perf"}
 		return GenerateJsonRequest(s.JoinGroupTarget(), arguments)
 	})
 }
