@@ -22,6 +22,7 @@ type Session struct {
 	States        chan string
 	recvHandShake bool
 	invocationId  int64
+	GroupName     string
 
 	counter *util.Counter
 
@@ -58,6 +59,10 @@ func (s *Session) WriteTextMessage(msg string) {
 		tpe:          websocket.TextMessage,
 		messageBytes: []byte(msg),
 	}
+}
+
+func (s *Session) WriteMessage(msg Message) {
+	s.Sending <- msg
 }
 
 func (s *Session) InstallMessageGeneator(gen MessageGenerator) {

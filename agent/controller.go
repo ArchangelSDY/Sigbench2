@@ -45,7 +45,7 @@ func (c *Controller) Setup(config *benchmark.Config, reply *struct{}) error {
 		return fmt.Errorf("Cannot find subject: " + config.Subject)
 	}
 	c.Subject = subject
-	return c.Subject.Setup(config)
+	return c.Subject.Setup(config, subject)
 }
 
 func (c *Controller) CollectCounters(args *struct{}, result *map[string]int64) error {

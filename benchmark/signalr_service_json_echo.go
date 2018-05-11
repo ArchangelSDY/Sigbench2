@@ -2,8 +2,6 @@ package benchmark
 
 import (
 	"time"
-
-	"aspnet.com/util"
 )
 
 var _ Subject = (*SignalrServiceJsonEcho)(nil)
@@ -12,25 +10,20 @@ type SignalrServiceJsonEcho struct {
 	SignalrCoreCommon
 }
 
-func (s *SignalrServiceJsonEcho) InvokeTarget() string {
+func (s *SignalrServiceJsonEcho) LatencyCheckTarget() string {
 	return "echo"
+}
+
+func (s *SignalrServiceJsonEcho) IsJson() bool {
+	return true
+}
+
+func (s *SignalrServiceJsonEcho) IsMsgpack() bool {
+	return false
 }
 
 func (s *SignalrServiceJsonEcho) Name() string {
 	return "SignalR Service Echo"
-}
-
-func (s *SignalrServiceJsonEcho) Setup(config *Config) error {
-	s.host = config.Host
-	s.useWss = config.UseWss
-	s.counter = util.NewCounter()
-	s.sessions = make([]*Session, 0, 20000)
-
-	s.received = make(chan MessageReceived)
-
-	go s.ProcessJsonLatency(s.InvokeTarget())
-
-	return nil
 }
 
 func (s *SignalrServiceJsonEcho) DoEnsureConnection(count int, conPerSec int) error {
@@ -44,6 +37,6 @@ func (s *SignalrServiceJsonEcho) DoSend(clients int, intervalMillis int) error {
 		WithInterval: WithInterval{
 			interval: time.Millisecond * time.Duration(intervalMillis),
 		},
-		Target: s.InvokeTarget(),
+		Target: s.LatencyCheckTarget(),
 	})
 }

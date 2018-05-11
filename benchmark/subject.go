@@ -21,8 +21,9 @@ type Config struct {
 
 // Subject defines the interface for a test subject.
 type Subject interface {
+	ProtocolProcessing
 	Name() string
-	Setup(config *Config) error
+	Setup(config *Config, p ProtocolProcessing) error
 	Counters() map[string]int64
 
 	DoEnsureConnection(count int, conPerSec int) error

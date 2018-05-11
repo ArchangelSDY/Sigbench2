@@ -1,10 +1,5 @@
 package benchmark
 
-import (
-	"time"
-
-	"aspnet.com/util"
-)
 
 var _ Subject = (*SignalrCoreMsgpackBroadcast)(nil)
 
@@ -12,32 +7,19 @@ type SignalrCoreMsgpackBroadcast struct {
 	SignalrCoreMsgpackEcho
 }
 
-func (s *SignalrCoreMsgpackBroadcast) InvokeTarget() string {
+func (s *SignalrCoreMsgpackBroadcast) LatencyCheckTarget() string {
 	return "broadcastMessage"
+}
+
+func (s *SignalrCoreMsgpackBroadcast) IsJson() bool {
+	return false
+}
+
+func (s *SignalrCoreMsgpackBroadcast) IsMsgpack() bool {
+	return true
 }
 
 func (s *SignalrCoreMsgpackBroadcast) Name() string {
 	return "SignalR Core MessagePack"
 }
 
-func (s *SignalrCoreMsgpackBroadcast) Setup(config *Config) error {
-	s.host = config.Host
-
-	s.counter = util.NewCounter()
-	s.sessions = make([]*Session, 0, 20000)
-
-	s.received = make(chan MessageReceived)
-
-	go s.ProcessMsgPackLatency(s.InvokeTarget())
-
-	return nil
-}
-
-func (s *SignalrCoreMsgpackBroadcast) DoSend(clients int, intervalMillis int) error {
-	return s.doSend(clients, intervalMillis, &MessagePackMessageGenerator{
-		WithInterval: WithInterval{
-			interval: time.Millisecond * time.Duration(intervalMillis),
-		},
-		Target: s.InvokeTarget(),
-	})
-}

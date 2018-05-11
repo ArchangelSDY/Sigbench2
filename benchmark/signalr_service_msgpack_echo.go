@@ -2,35 +2,28 @@ package benchmark
 
 import (
 	"time"
-
-	"aspnet.com/util"
 )
 
 var _ Subject = (*SignalrServiceMsgpackEcho)(nil)
-
-func (s *SignalrServiceMsgpackEcho) InvokeTarget() string {
-	return "echo"
-}
 
 type SignalrServiceMsgpackEcho struct {
 	SignalrCoreCommon
 }
 
-func (s *SignalrServiceMsgpackEcho) Name() string {
-	return "SignalR Service MsgPack Echo"
+func (s *SignalrServiceMsgpackEcho) LatencyCheckTarget() string {
+	return "echo"
 }
 
-func (s *SignalrServiceMsgpackEcho) Setup(config *Config) error {
-	s.host = config.Host
-	s.useWss = config.UseWss
-	s.counter = util.NewCounter()
-	s.sessions = make([]*Session, 0, 20000)
+func (s *SignalrServiceMsgpackEcho) IsJson() bool {
+	return false
+}
 
-	s.received = make(chan MessageReceived)
+func (s *SignalrServiceMsgpackEcho) IsMsgpack() bool {
+	return true
+}
 
-	go s.ProcessMsgPackLatency(s.InvokeTarget())
-
-	return nil
+func (s *SignalrServiceMsgpackEcho) Name() string {
+	return "SignalR Service MsgPack Echo"
 }
 
 func (s *SignalrServiceMsgpackEcho) DoEnsureConnection(count int, conPerSec int) error {
@@ -44,6 +37,6 @@ func (s *SignalrServiceMsgpackEcho) DoSend(clients int, intervalMillis int) erro
 		WithInterval: WithInterval{
 			interval: time.Millisecond * time.Duration(intervalMillis),
 		},
-		Target: s.InvokeTarget(),
+		Target: s.LatencyCheckTarget(),
 	})
 }

@@ -13,16 +13,60 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/teris-io/shortid"
 	"github.com/vmihailenco/msgpack"
+	"aspnet.com/util"
 )
 
 type SignalrServiceHandshake struct {
 	ServiceUrl string `json:"url"`
 	JwtBearer  string `json:"accessToken"`
 }
+type ProtocolProcessing interface {
+	IsJson() bool
+	IsMsgpack() bool
+	LatencyCheckTarget() string
+	GroupCheckTarget() string
+}
 
 type SignalrCoreCommon struct {
+	ProtocolProcessing
 	WithCounter
 	WithSessions
+	JsonReceiveFuncs	[]func(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64)
+	MsgpackReceiveFuncs	[]func(p ProtocolProcessing, content MsgpackInvocation, recvSize int64)
+}
+
+func (s *SignalrCoreCommon) IsJson() bool {
+	return false
+}
+
+func (s *SignalrCoreCommon) IsMsgpack() bool {
+	return false
+}
+
+func (s *SignalrCoreCommon) LatencyCheckTarget() string {
+	return "dummy"
+}
+
+func (s *SignalrCoreCommon) GroupCheckTarget() string {
+	return "dummy"
+}
+
+func (s *SignalrCoreCommon) Setup(config *Config, p ProtocolProcessing) error {
+	s.host = config.Host
+	s.useWss = config.UseWss
+	s.counter = util.NewCounter()
+	s.sessions = make([]*Session, 0, 20000)
+	s.received = make(chan MessageReceived)
+	if (p.IsJson()) {
+		s.JsonReceiveFuncs = make([]func(ProtocolProcessing, SignalRCoreInvocation, int64), 0, 2)
+		s.JsonReceiveFuncs = append(s.JsonReceiveFuncs, s.ProcessJsonLatency)
+		go s.ProcessJson(p)
+	} else if (p.IsMsgpack()) {
+		s.MsgpackReceiveFuncs = make([]func(ProtocolProcessing, MsgpackInvocation, int64), 0, 2)
+		s.MsgpackReceiveFuncs = append(s.MsgpackReceiveFuncs, s.ProcessMsgPackLatency)
+		go s.ProcessMsgPack(p)
+	}
+	return nil
 }
 
 func (s *SignalrCoreCommon) SignalrCoreBaseConnect(protocol string) (session *Session, err error) {
@@ -157,7 +201,20 @@ func (s *SignalrCoreCommon) ParseBinaryMessage(bytes []byte) ([]byte, error) {
 	return bytes[numBytes : numBytes+msgLen], nil
 }
 
-func (s *SignalrCoreCommon) ProcessJsonLatency(target string) {
+func (s *SignalrCoreCommon) ProcessJsonLatency(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) {
+	if content.Type == 1 && content.Target == p.LatencyCheckTarget() {
+		sendStart, err := strconv.ParseInt(content.Arguments[1], 10, 64)
+		if err != nil {
+			s.LogError("message:decode_error", "", "Failed to decode start timestamp", err)
+			return
+		}
+		s.counter.Stat("message:received", 1)
+		s.counter.Stat("message:recvSize", recvSize)
+		s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+	}
+}
+
+func (s *SignalrCoreCommon) ProcessJson(p ProtocolProcessing) {
 	for msgReceived := range s.received {
 		// Multiple json responses may be merged to be a list.
 		// Split them and remove '0x1e' terminator.
@@ -186,22 +243,27 @@ func (s *SignalrCoreCommon) ProcessJsonLatency(target string) {
 				s.LogError("message:decode_error", msgReceived.ClientID, "Failed to decode incoming SignalR invocation message", err)
 				continue
 			}
-
-			if content.Type == 1 && content.Target == target {
-				sendStart, err := strconv.ParseInt(content.Arguments[1], 10, 64)
-				if err != nil {
-					s.LogError("message:decode_error", msgReceived.ClientID, "Failed to decode start timestamp", err)
-					continue
-				}
-				s.counter.Stat("message:received", 1)
-				s.counter.Stat("message:recvSize", int64(len(msg)))
-				s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+			for _, recvFunc := range s.JsonReceiveFuncs {
+				recvFunc(p, content, int64(len(msg)))
 			}
 		}
 	}
 }
 
-func (s *SignalrCoreCommon) ProcessMsgPackLatency(target string) {
+func (s *SignalrCoreCommon) ProcessMsgPackLatency(p ProtocolProcessing, content MsgpackInvocation, recvSize int64) {
+	if content.MessageType == 1 && content.Target == p.LatencyCheckTarget() {
+		sendStart, err := strconv.ParseInt(content.Params[1], 10, 64)
+		if err != nil {
+			s.LogError("message:decode_error", "", "Failed to decode start timestamp", err)
+			return
+		}
+		s.counter.Stat("message:received", 1)
+		s.counter.Stat("message:recvSize", recvSize)
+		s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+	}
+}
+
+func (s *SignalrCoreCommon) ProcessMsgPack(p ProtocolProcessing) {
 	for msgReceived := range s.received {
 		msg, err := s.ParseBinaryMessage(msgReceived.Content)
 		if err != nil {
@@ -215,15 +277,8 @@ func (s *SignalrCoreCommon) ProcessMsgPackLatency(target string) {
 			continue
 		}
 
-		if content.Target == target {
-			sendStart, err := strconv.ParseInt(content.Params[1], 10, 64)
-			if err != nil {
-				s.LogError("message:decode_error", msgReceived.ClientID, "Failed to decode start timestamp", err)
-				continue
-			}
-			s.counter.Stat("message:received", 1)
-			s.counter.Stat("message:recvSize", int64(len(msgReceived.Content)))
-			s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+		for _, recvFunc := range s.MsgpackReceiveFuncs {
+			recvFunc(p, content, int64(len(msgReceived.Content)))
 		}
 	}
 }

@@ -69,14 +69,11 @@ type SignalRCoreTextMessageGenerator struct {
 
 var _ MessageGenerator = (*SignalRCoreTextMessageGenerator)(nil)
 
-func (g *SignalRCoreTextMessageGenerator) Generate(uid string, invocationId int64) Message {
+func GenerateJsonRequest(target string, arguments []string) Message {
 	msg, err := json.Marshal(&SignalRCoreInvocation{
 		Type: 1,
-		Target: g.Target,
-		Arguments: []string{
-			uid,
-			strconv.FormatInt(time.Now().UnixNano(), 10),
-		},
+		Target: target,
+		Arguments: arguments,
 	})
 	if err != nil {
 		log.Println("ERROR: failed to encoding SignalR message", err)
@@ -84,6 +81,14 @@ func (g *SignalRCoreTextMessageGenerator) Generate(uid string, invocationId int6
 	}
 	msg = append(msg, SignalRMessageTerminator)
 	return PlainMessage{websocket.TextMessage, msg}
+}
+
+func (g *SignalRCoreTextMessageGenerator) Generate(uid string, invocationId int64) Message {
+	arguments := []string{
+		uid,
+		strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	return GenerateJsonRequest(g.Target, arguments)
 }
 
 type MessagePackMessageGenerator struct {
@@ -111,15 +116,12 @@ func appendLength(bytes []byte) []byte {
 	return buffer
 }
 
-func (g MessagePackMessageGenerator) Generate(uid string, invocationId int64) Message {
+func GenerateMessagePackRequest(target string, arguments []string) Message {
 	invocation := MsgpackInvocation{
 		MessageType: 1,
 		Header:      map[string]string{},
-		Target: g.Target,
-		Params: []string{
-			uid,
-			strconv.FormatInt(time.Now().UnixNano(), 10),
-		},
+		Target: target,
+		Params: arguments,
 	}
 	msg, err := msgpack.Marshal(&invocation)
 	if err != nil {
@@ -128,4 +130,12 @@ func (g MessagePackMessageGenerator) Generate(uid string, invocationId int64) Me
 	}
 	msg = appendLength(msg)
 	return PlainMessage{websocket.BinaryMessage, msg}
+}
+
+func (g MessagePackMessageGenerator) Generate(uid string, invocationId int64) Message {
+	params := []string{
+		uid,
+		strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	return GenerateMessagePackRequest(g.Target, params)
 }
