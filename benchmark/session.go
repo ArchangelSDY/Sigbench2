@@ -81,7 +81,7 @@ func (s *Session) InstallMessageGeneator(gen MessageGenerator) {
 		for {
 			select {
 			case <-ticker.C:
-				s.Sending <- gen.Generate(s.ID, s.invocationId)
+				s.Sending <- gen.Generate(s.ID, s.GroupName, s.invocationId)
 				s.invocationId++
 			case <-s.genClose:
 				return

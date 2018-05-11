@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"time"
 
+	"aspnet.com/util"
 	"github.com/gorilla/websocket"
 	"github.com/teris-io/shortid"
 	"github.com/vmihailenco/msgpack"
-	"aspnet.com/util"
 )
 
 type SignalrServiceHandshake struct {
@@ -24,15 +24,16 @@ type ProtocolProcessing interface {
 	IsJson() bool
 	IsMsgpack() bool
 	LatencyCheckTarget() string
-	GroupCheckTarget() string
+	JoinGroupTarget() string
+	LeaveGroupTarget() string
 }
 
 type SignalrCoreCommon struct {
 	ProtocolProcessing
 	WithCounter
 	WithSessions
-	JsonReceiveFuncs	[]func(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64)
-	MsgpackReceiveFuncs	[]func(p ProtocolProcessing, content MsgpackInvocation, recvSize int64)
+	JsonReceiveFuncs    []func(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) bool
+	MsgpackReceiveFuncs []func(p ProtocolProcessing, content MsgpackInvocation, recvSize int64) bool
 }
 
 func (s *SignalrCoreCommon) IsJson() bool {
@@ -47,7 +48,11 @@ func (s *SignalrCoreCommon) LatencyCheckTarget() string {
 	return "dummy"
 }
 
-func (s *SignalrCoreCommon) GroupCheckTarget() string {
+func (s *SignalrCoreCommon) JoinGroupTarget() string {
+	return "dummy"
+}
+
+func (s *SignalrCoreCommon) LeaveGroupTarget() string {
 	return "dummy"
 }
 
@@ -57,13 +62,15 @@ func (s *SignalrCoreCommon) Setup(config *Config, p ProtocolProcessing) error {
 	s.counter = util.NewCounter()
 	s.sessions = make([]*Session, 0, 20000)
 	s.received = make(chan MessageReceived)
-	if (p.IsJson()) {
-		s.JsonReceiveFuncs = make([]func(ProtocolProcessing, SignalRCoreInvocation, int64), 0, 2)
+	if p.IsJson() {
+		s.JsonReceiveFuncs = make([]func(ProtocolProcessing, SignalRCoreInvocation, int64) bool, 0, 2)
 		s.JsonReceiveFuncs = append(s.JsonReceiveFuncs, s.ProcessJsonLatency)
+		s.JsonReceiveFuncs = append(s.JsonReceiveFuncs, s.ProcessJsonJoinLeaveGroup)
 		go s.ProcessJson(p)
-	} else if (p.IsMsgpack()) {
-		s.MsgpackReceiveFuncs = make([]func(ProtocolProcessing, MsgpackInvocation, int64), 0, 2)
+	} else if p.IsMsgpack() {
+		s.MsgpackReceiveFuncs = make([]func(ProtocolProcessing, MsgpackInvocation, int64) bool, 0, 2)
 		s.MsgpackReceiveFuncs = append(s.MsgpackReceiveFuncs, s.ProcessMsgPackLatency)
+		s.MsgpackReceiveFuncs = append(s.MsgpackReceiveFuncs, s.ProcessMsgPackJoinLeaveGroup)
 		go s.ProcessMsgPack(p)
 	}
 	return nil
@@ -201,17 +208,34 @@ func (s *SignalrCoreCommon) ParseBinaryMessage(bytes []byte) ([]byte, error) {
 	return bytes[numBytes : numBytes+msgLen], nil
 }
 
-func (s *SignalrCoreCommon) ProcessJsonLatency(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) {
+func (s *SignalrCoreCommon) ProcessJsonLatency(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) bool {
+	fmt.Printf("target: %s %s\n", content.Target, p.LatencyCheckTarget())
 	if content.Type == 1 && content.Target == p.LatencyCheckTarget() {
 		sendStart, err := strconv.ParseInt(content.Arguments[1], 10, 64)
 		if err != nil {
 			s.LogError("message:decode_error", "", "Failed to decode start timestamp", err)
-			return
+			return false
 		}
 		s.counter.Stat("message:received", 1)
 		s.counter.Stat("message:recvSize", recvSize)
 		s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+		return true
 	}
+	return false
+}
+
+func (s *SignalrCoreCommon) ProcessJsonJoinLeaveGroup(p ProtocolProcessing, content SignalRCoreInvocation, recvSize int64) bool {
+	if content.Type == 1 {
+		fmt.Printf("group target: %s\n", content.Target)
+		if content.Target == p.JoinGroupTarget() {
+			s.counter.Stat("connection:groupjoin", 1)
+			return true
+		} else if content.Target == p.LeaveGroupTarget() {
+			s.counter.Stat("connection:groupjoin", -1)
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SignalrCoreCommon) ProcessJson(p ProtocolProcessing) {
@@ -250,17 +274,32 @@ func (s *SignalrCoreCommon) ProcessJson(p ProtocolProcessing) {
 	}
 }
 
-func (s *SignalrCoreCommon) ProcessMsgPackLatency(p ProtocolProcessing, content MsgpackInvocation, recvSize int64) {
+func (s *SignalrCoreCommon) ProcessMsgPackLatency(p ProtocolProcessing, content MsgpackInvocation, recvSize int64) bool {
 	if content.MessageType == 1 && content.Target == p.LatencyCheckTarget() {
 		sendStart, err := strconv.ParseInt(content.Params[1], 10, 64)
 		if err != nil {
 			s.LogError("message:decode_error", "", "Failed to decode start timestamp", err)
-			return
+			return false
 		}
 		s.counter.Stat("message:received", 1)
 		s.counter.Stat("message:recvSize", recvSize)
 		s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+		return true
 	}
+	return true
+}
+
+func (s *SignalrCoreCommon) ProcessMsgPackJoinLeaveGroup(p ProtocolProcessing, content MsgpackInvocation, recvSize int64) bool {
+	if content.MessageType == 1 {
+		if content.Target == p.JoinGroupTarget() {
+			s.counter.Stat("message:groupjoin", 1)
+			return true
+		} else if content.Target == p.LeaveGroupTarget() {
+			s.counter.Stat("message:groupjoin", -1)
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SignalrCoreCommon) ProcessMsgPack(p ProtocolProcessing) {
@@ -278,7 +317,9 @@ func (s *SignalrCoreCommon) ProcessMsgPack(p ProtocolProcessing) {
 		}
 
 		for _, recvFunc := range s.MsgpackReceiveFuncs {
-			recvFunc(p, content, int64(len(msgReceived.Content)))
+			if recvFunc(p, content, int64(len(msgReceived.Content))) {
+				break
+			}
 		}
 	}
 }

@@ -26,6 +26,10 @@ func (s *SignalrCoreMsgpackEcho) Name() string {
 	return "SignalR Core MessagePack"
 }
 
+func (s *SignalrCoreMsgpackEcho) DoJoinGroup(membersPerGroup int) error {
+	return nil
+}
+
 func (s *SignalrCoreMsgpackEcho) DoEnsureConnection(count int, conPerSec int) error {
 	return s.doEnsureConnection(count, conPerSec, func(withSessions *WithSessions) (*Session, error) {
 		return s.SignalrCoreMsgPackConnect()

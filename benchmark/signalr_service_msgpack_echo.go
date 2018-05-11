@@ -26,6 +26,10 @@ func (s *SignalrServiceMsgpackEcho) Name() string {
 	return "SignalR Service MsgPack Echo"
 }
 
+func (s *SignalrServiceMsgpackEcho) DoJoinGroup(membersPerGroup int) error {
+	return nil
+}
+
 func (s *SignalrServiceMsgpackEcho) DoEnsureConnection(count int, conPerSec int) error {
 	return s.doEnsureConnection(count, conPerSec, func(withSessions *WithSessions) (*Session, error) {
 		return s.SignalrServiceMsgPackConnect()

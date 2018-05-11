@@ -40,3 +40,7 @@ func (s *SignalrCoreJsonEcho) DoSend(clients int, intervalMillis int) error {
 		Target: s.LatencyCheckTarget(),
 	})
 }
+
+func (s *SignalrCoreJsonEcho) DoJoinGroup(membersPerGroup int) error {
+	return nil
+}

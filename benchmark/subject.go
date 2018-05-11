@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/teris-io/shortid"
 	"aspnet.com/util"
 )
 
@@ -28,6 +29,7 @@ type Subject interface {
 
 	DoEnsureConnection(count int, conPerSec int) error
 	DoSend(clients int, intervalMillis int) error
+	DoJoinGroup(membersPerGroup int) error
 	DoClear(prefix string) error
 }
 
@@ -140,6 +142,45 @@ func (s *WithSessions) doSend(clients int, intervalMillis int, gen MessageGenera
 		s.sessions[indices[i]].InstallMessageGeneator(gen)
 	}
 
+	return nil
+}
+
+func (s *WithSessions) doJoinGroup(membersPerGroup int, joinGroup func(string) Message) error {
+	s.sessionsLock.Lock()
+	defer s.sessionsLock.Unlock()
+
+	s.doStopSendUnsafe()
+
+	sessionCount := len(s.sessions)
+	if (membersPerGroup > sessionCount) {
+		membersPerGroup = sessionCount
+	}
+	indices := rand.Perm(sessionCount)
+	bound := sessionCount
+	var id string
+	for i := 0; i < bound; i++ {
+		if i % membersPerGroup == 0 {
+			id, _ = shortid.Generate()
+		}
+		msg := joinGroup(id)
+		s.sessions[indices[i]].GroupName = id
+		s.sessions[indices[i]].WriteMessage(msg)
+	}
+	return nil
+}
+
+func (s *WithSessions) doLeaveGroup(leaveGroup func(string) Message) error {
+	s.sessionsLock.Lock()
+	defer s.sessionsLock.Unlock()
+
+	s.doStopSendUnsafe()
+
+	sessionCount := len(s.sessions)
+	indices := rand.Perm(sessionCount)
+	for i := 0; i < sessionCount; i++ {
+		msg := leaveGroup(s.sessions[indices[i]].GroupName)
+		s.sessions[indices[i]].WriteMessage(msg)
+	}
 	return nil
 }
 

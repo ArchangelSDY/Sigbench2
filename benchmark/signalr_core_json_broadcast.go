@@ -1,7 +1,6 @@
 package benchmark
 
-import (
-)
+import ()
 
 var _ Subject = (*SignalrCoreJsonBroadcast)(nil)
 

@@ -22,9 +22,9 @@ type SignalRCommon struct {
 }
 
 type SignalRCoreInvocation struct {
-	Type         int      `json:"type"`
-	Target       string   `json:"target"`
-	Arguments    []string `json:"arguments"`
+	Type      int      `json:"type"`
+	Target    string   `json:"target"`
+	Arguments []string `json:"arguments"`
 }
 
 type MsgpackInvocation struct {
@@ -71,8 +71,8 @@ var _ MessageGenerator = (*SignalRCoreTextMessageGenerator)(nil)
 
 func GenerateJsonRequest(target string, arguments []string) Message {
 	msg, err := json.Marshal(&SignalRCoreInvocation{
-		Type: 1,
-		Target: target,
+		Type:      1,
+		Target:    target,
 		Arguments: arguments,
 	})
 	if err != nil {
@@ -83,7 +83,7 @@ func GenerateJsonRequest(target string, arguments []string) Message {
 	return PlainMessage{websocket.TextMessage, msg}
 }
 
-func (g *SignalRCoreTextMessageGenerator) Generate(uid string, invocationId int64) Message {
+func (g *SignalRCoreTextMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
 	arguments := []string{
 		uid,
 		strconv.FormatInt(time.Now().UnixNano(), 10),
@@ -120,8 +120,8 @@ func GenerateMessagePackRequest(target string, arguments []string) Message {
 	invocation := MsgpackInvocation{
 		MessageType: 1,
 		Header:      map[string]string{},
-		Target: target,
-		Params: arguments,
+		Target:      target,
+		Params:      arguments,
 	}
 	msg, err := msgpack.Marshal(&invocation)
 	if err != nil {
@@ -132,7 +132,7 @@ func GenerateMessagePackRequest(target string, arguments []string) Message {
 	return PlainMessage{websocket.BinaryMessage, msg}
 }
 
-func (g MessagePackMessageGenerator) Generate(uid string, invocationId int64) Message {
+func (g MessagePackMessageGenerator) Generate(uid string, groupName string, invocationId int64) Message {
 	params := []string{
 		uid,
 		strconv.FormatInt(time.Now().UnixNano(), 10),
