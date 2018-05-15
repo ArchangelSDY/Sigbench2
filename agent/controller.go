@@ -18,10 +18,12 @@ var SubjectMap = map[string]benchmark.Subject{
 	"signalr:msgpack:echo":      &benchmark.SignalrCoreMsgpackEcho{},
 	"signalr:msgpack:broadcast": &benchmark.SignalrCoreMsgpackBroadcast{},
 	// signalr service
-	"signalr:service:json:echo":         &benchmark.SignalrServiceJsonEcho{},
-	"signalr:service:msgpack:echo":      &benchmark.SignalrServiceMsgpackEcho{},
-	"signalr:service:json:broadcast":    &benchmark.SignalrServiceJsonBroadcast{},
-	"signalr:service:msgpack:broadcast": &benchmark.SignalrServiceMsgpackBroadcast{},
+	"signalr:service:json:echo":           &benchmark.SignalrServiceJsonEcho{},
+	"signalr:service:msgpack:echo":        &benchmark.SignalrServiceMsgpackEcho{},
+	"signalr:service:json:broadcast":      &benchmark.SignalrServiceJsonBroadcast{},
+	"signalr:service:msgpack:broadcast":   &benchmark.SignalrServiceMsgpackBroadcast{},
+	"signalr:service:json:groupbroadcast": &benchmark.SignalrServiceJsonGroupBroadcast{},
+	"signalr:service:msgpack:groupbroadcast": &benchmark.SignalrServiceMsgpackGroupBroadcast{},
 }
 
 // Controller stands for a single agent and exposes management interfaces.
@@ -45,7 +47,7 @@ func (c *Controller) Setup(config *benchmark.Config, reply *struct{}) error {
 		return fmt.Errorf("Cannot find subject: " + config.Subject)
 	}
 	c.Subject = subject
-	return c.Subject.Setup(config)
+	return c.Subject.Setup(config, subject)
 }
 
 func (c *Controller) CollectCounters(args *struct{}, result *map[string]int64) error {

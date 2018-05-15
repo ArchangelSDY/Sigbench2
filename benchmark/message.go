@@ -42,5 +42,5 @@ func (c CloseMessage) Bytes() []byte {
 
 type MessageGenerator interface {
 	Interval() time.Duration
-	Generate(uid string, invocationId int64) Message
+	Generate(uid string, groupName string, invocationId int64) Message
 }

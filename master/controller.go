@@ -112,6 +112,7 @@ var counterFields = []string{
 	"connection:established",
 	"connection:closed",
 	"connection:error",
+	"connection:groupjoin",
 	"message:lt:100",
 	"message:lt:200",
 	"message:lt:300",
@@ -306,6 +307,14 @@ func (c *Controller) batchRun(config *benchmark.Config) error {
 				fmt.Println(err)
 				return err
 			}
+		case "gs":
+			fallthrough
+		case "GroupSend":
+			err = c.groupSend(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
 		case "s":
 			fallthrough
 		case "Send":
@@ -326,6 +335,22 @@ func (c *Controller) batchRun(config *benchmark.Config) error {
 			fallthrough
 		case "Wait":
 			err = c.waitTimeoutOrComplete(parts, true)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+		case "jg":
+			fallthrough
+		case "JoinGroup":
+			err = c.joinGroup(parts)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+		case "lg":
+			fallthrough
+		case "LeaveGroup":
+			err = c.leaveGroup()
 			if err != nil {
 				fmt.Println(err)
 				return err
@@ -371,10 +396,34 @@ func (c *Controller) interactiveRun() error {
 				fmt.Println(err)
 				break
 			}
+		case "gs":
+			fallthrough
+		case "GroupSend":
+			err = c.groupSend(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
 		case "s":
 			fallthrough
 		case "Send":
 			err = c.send(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+		case "jg":
+			fallthrough
+		case "JoinGroup":
+			err = c.joinGroup(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+		case "lg":
+			fallthrough
+		case "LeaveGroup":
+			err = c.leaveGroup()
 			if err != nil {
 				fmt.Println(err)
 				break
@@ -446,7 +495,50 @@ func (c *Controller) connect(parts []string) error {
 	return nil
 }
 
+func (c *Controller) joinGroup(parts []string) error {
+	partsLen := len(parts)
+	if partsLen < 2 {
+		return fmt.Errorf("SYNTAX: jg <members_of_group>")
+	}
+	members, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return fmt.Errorf("ERROR: ", err)
+	}
+	for _, agentProxy := range c.Agents {
+		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
+			Command:   "JoinGroup",
+			Arguments: []string{strconv.Itoa(members)},
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("ERROR[%s]: %v\n", agentProxy.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Controller) leaveGroup() error {
+	for _, agentProxy := range c.Agents {
+		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
+			Command:   "LeaveGroup",
+			Arguments: []string{},
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("ERROR[%s]: %v\n", agentProxy.Address, err)
+		}
+	}
+	return nil
+}
+
+
+func (c *Controller) groupSend(parts []string) error {
+	return c.internalSend(parts, "GroupSend")
+}
+
 func (c *Controller) send(parts []string) error {
+	return c.internalSend(parts, "Send")
+}
+
+func (c *Controller) internalSend(parts []string, cmd string) error {
 	partsLen := len(parts)
 	if partsLen < 2 || partsLen > 3 {
 		return fmt.Errorf("SYNTAX: s <clients> [interval_millis]")
@@ -468,7 +560,7 @@ func (c *Controller) send(parts []string) error {
 	for i, agentProxy := range c.Agents {
 		agentClients := c.SplitNumber(clients, i)
 		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
-			Command:   "Send",
+			Command:   cmd,
 			Arguments: []string{strconv.Itoa(agentClients), strconv.Itoa(interval)},
 		}, nil)
 		if err != nil {

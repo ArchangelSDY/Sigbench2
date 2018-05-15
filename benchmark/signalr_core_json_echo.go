@@ -2,8 +2,6 @@ package benchmark
 
 import (
 	"time"
-
-	"aspnet.com/util"
 )
 
 var _ Subject = (*SignalrCoreJsonEcho)(nil)
@@ -12,25 +10,20 @@ type SignalrCoreJsonEcho struct {
 	SignalrCoreCommon
 }
 
-func (s *SignalrCoreJsonEcho) InvokeTarget() string {
+func (s *SignalrCoreJsonEcho) LatencyCheckTarget() string {
 	return "echo"
+}
+
+func (s *SignalrCoreJsonEcho) IsJson() bool {
+	return true
+}
+
+func (s *SignalrCoreJsonEcho) IsMsgpack() bool {
+	return false
 }
 
 func (s *SignalrCoreJsonEcho) Name() string {
 	return "SignalR Core Connection"
-}
-
-func (s *SignalrCoreJsonEcho) Setup(config *Config) error {
-	s.host = config.Host
-
-	s.counter = util.NewCounter()
-	s.sessions = make([]*Session, 0, 20000)
-
-	s.received = make(chan MessageReceived)
-
-	go s.ProcessJsonLatency(s.InvokeTarget())
-
-	return nil
 }
 
 func (s *SignalrCoreJsonEcho) DoEnsureConnection(count int, conPerSec int) error {
@@ -39,11 +32,19 @@ func (s *SignalrCoreJsonEcho) DoEnsureConnection(count int, conPerSec int) error
 	})
 }
 
+func (s *SignalrCoreJsonEcho) DoGroupSend(clients int, intervalMillis int) error {
+	return nil
+}
+
 func (s *SignalrCoreJsonEcho) DoSend(clients int, intervalMillis int) error {
 	return s.doSend(clients, intervalMillis, &SignalRCoreTextMessageGenerator{
 		WithInterval: WithInterval{
 			interval: time.Millisecond * time.Duration(intervalMillis),
 		},
-		Target: s.InvokeTarget(),
+		Target: s.LatencyCheckTarget(),
 	})
+}
+
+func (s *SignalrCoreJsonEcho) DoJoinGroup(membersPerGroup int) error {
+	return nil
 }

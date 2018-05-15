@@ -22,6 +22,7 @@ type Session struct {
 	States        chan string
 	recvHandShake bool
 	invocationId  int64
+	GroupName     string
 
 	counter *util.Counter
 
@@ -60,6 +61,10 @@ func (s *Session) WriteTextMessage(msg string) {
 	}
 }
 
+func (s *Session) WriteMessage(msg Message) {
+	s.Sending <- msg
+}
+
 func (s *Session) InstallMessageGeneator(gen MessageGenerator) {
 	s.genLock.Lock()
 	defer s.genLock.Unlock()
@@ -76,7 +81,7 @@ func (s *Session) InstallMessageGeneator(gen MessageGenerator) {
 		for {
 			select {
 			case <-ticker.C:
-				s.Sending <- gen.Generate(s.ID, s.invocationId)
+				s.Sending <- gen.Generate(s.ID, s.GroupName, s.invocationId)
 				s.invocationId++
 			case <-s.genClose:
 				return
