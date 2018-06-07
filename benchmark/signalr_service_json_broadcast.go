@@ -1,5 +1,8 @@
 package benchmark
 
+import (
+	"time"
+)
 
 var _ Subject = (*SignalrServiceJsonBroadcast)(nil)
 
@@ -22,7 +25,7 @@ func (s *SignalrServiceJsonBroadcast) IsMsgpack() bool {
 func (s *SignalrServiceJsonBroadcast) Name() string {
 	return "SignalR Service Broadcast"
 }
-/*
+
 func (s *SignalrServiceJsonBroadcast) DoSend(clients int, intervalMillis int) error {
 	return s.doSend(clients, intervalMillis, &SignalRCoreTextMessageGenerator{
 		WithInterval: WithInterval{
@@ -31,4 +34,3 @@ func (s *SignalrServiceJsonBroadcast) DoSend(clients int, intervalMillis int) er
 		Target: s.LatencyCheckTarget(),
 	})
 }
-*/
