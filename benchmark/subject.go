@@ -7,17 +7,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/teris-io/shortid"
 	"aspnet.com/util"
+	"github.com/teris-io/shortid"
 )
 
 // Config defines the basic configuration for the benchmark.
 type Config struct {
-	Host    string
-	Subject string
-	CmdFile string
-	OutDir  string
-	UseWss  bool
+	Host     string
+	Subject  string
+	CmdFile  string
+	OutDir   string
+	UseWss   bool
+	SendSize int
 }
 
 // Subject defines the interface for a test subject.
@@ -55,7 +56,7 @@ const LatencyLength int = 10
 func (w *WithCounter) LogLatency(latency int64) {
 	index := int(latency / LatencyStep)
 	if index >= LatencyLength {
-		w.Counter().Stat(fmt.Sprintf("message:ge:%d", LatencyLength * int(LatencyStep)), 1)
+		w.Counter().Stat(fmt.Sprintf("message:ge:%d", LatencyLength*int(LatencyStep)), 1)
 	} else {
 		w.Counter().Stat(fmt.Sprintf("message:lt:%d00", index+1), 1)
 	}
@@ -73,6 +74,7 @@ func (s *WithCounter) DoClear(prefix string) error {
 type WithSessions struct {
 	host         string
 	useWss       bool
+	sendSize     int
 	sessions     []*Session
 	sessionsLock sync.Mutex
 	joinGroupWg  sync.WaitGroup
@@ -154,14 +156,14 @@ func (s *WithSessions) doJoinGroup(membersPerGroup int, joinGroup func(string) M
 	s.doStopSendUnsafe()
 
 	sessionCount := len(s.sessions)
-	if (membersPerGroup > sessionCount) {
+	if membersPerGroup > sessionCount {
 		membersPerGroup = sessionCount
 	}
 	indices := rand.Perm(sessionCount)
 	bound := sessionCount
 	var id string
 	for i := 0; i < bound; i++ {
-		if i % membersPerGroup == 0 {
+		if i%membersPerGroup == 0 {
 			id, _ = shortid.Generate()
 		}
 		msg := joinGroup(id)

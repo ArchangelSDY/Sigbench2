@@ -24,6 +24,7 @@ var opts struct {
 	Subject       string `short:"t" long:"test-subject" description:"Test subject"`
 	CmdFile       string `short:"c" long:"cmd-file" description:"Command file"`
 	UseWss        bool   `short:"u" long:"use-security-connection" description:"wss connection"`
+	SendSize      int    `short:"b" long:"send-size" description:"send message size (byte), default is 0, 0 means: a shortID + timestamp" default:"0"`
 }
 
 func startMaster() {
@@ -52,11 +53,12 @@ func startMaster() {
 	}
 
 	c.Run(&benchmark.Config{
-		Host:    opts.Server,
-		Subject: opts.Subject,
-		CmdFile: opts.CmdFile,
-		OutDir:  opts.OutputDir,
-		UseWss:  opts.UseWss,
+		Host:     opts.Server,
+		Subject:  opts.Subject,
+		CmdFile:  opts.CmdFile,
+		OutDir:   opts.OutputDir,
+		UseWss:   opts.UseWss,
+		SendSize: opts.SendSize,
 	})
 }
 
@@ -88,6 +90,7 @@ func startAgent() {
 func main() {
 	_, err := flags.Parse(&opts)
 	if err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
