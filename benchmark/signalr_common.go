@@ -90,22 +90,22 @@ func (s *SignalrCoreCommon) SignalrCoreBaseConnect(protocol string) (session *Se
 		log.Println("ERROR: failed to generate uid due to", err)
 		return
 	}
-	var idValue string
+	var sendName string
 	if s.sendSize == 0 {
-		idValue = id
+		sendName = id
 	} else {
-		idValue = RandStringBytesMaskImprSrc(s.sendSize)
+		sendName = RandStringBytesMaskImprSrc(s.sendSize)
 	}
 
 	s.counter.Stat("connection:inprogress", 1)
 	wsURL := "ws://" + s.host
 	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
-		s.LogError("connection:error", idValue, "Failed to connect to websocket", err)
+		s.LogError("connection:error", id, "Failed to connect to websocket", err)
 		return nil, err
 	}
 
-	session = NewSession(idValue, s.received, s.counter, c)
+	session = NewSession(id, sendName, s.received, s.counter, c)
 	if session != nil {
 		s.counter.Stat("connection:inprogress", -1)
 		s.counter.Stat("connection:established", 1)
@@ -141,11 +141,11 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 		log.Println("ERROR: failed to generate uid due to", err)
 		return
 	}
-	var idValue string
+	var sendName string
 	if s.sendSize == 0 {
-		idValue = id
+		sendName = id
 	} else {
-		idValue = RandStringBytesMaskImprSrc(s.sendSize)
+		sendName = RandStringBytesMaskImprSrc(s.sendSize)
 	}
 
 	negotiateResponse, err := http.Get("http://" + s.host + "/negotiate")
@@ -159,7 +159,7 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 	var handshake SignalrServiceHandshake
 	err = decoder.Decode(&handshake)
 	if err != nil {
-		s.LogError("connection:error", idValue, "Failed to decode service URL and jwtBearer", err)
+		s.LogError("connection:error", id, "Failed to decode service URL and jwtBearer", err)
 		return
 	}
 
@@ -175,10 +175,10 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 
 	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
-		s.LogError("connection:error", idValue, "Failed to connect to websocket", err)
+		s.LogError("connection:error", id, "Failed to connect to websocket", err)
 		return
 	}
-	session = NewSession(idValue, s.received, s.counter, c)
+	session = NewSession(id, sendName, s.received, s.counter, c)
 	if session != nil {
 		s.counter.Stat("connection:inprogress", -1)
 		s.counter.Stat("connection:established", 1)

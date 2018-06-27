@@ -23,6 +23,7 @@ type Session struct {
 	recvHandShake bool
 	invocationId  int64
 	GroupName     string
+	SendName      string
 
 	counter *util.Counter
 
@@ -30,9 +31,10 @@ type Session struct {
 	genClose chan struct{}
 }
 
-func NewSession(id string, received chan MessageReceived, counter *util.Counter, conn *websocket.Conn) *Session {
+func NewSession(id string, sendName string, received chan MessageReceived, counter *util.Counter, conn *websocket.Conn) *Session {
 	s := new(Session)
 	s.ID = id
+	s.SendName = sendName
 	s.counter = counter
 	s.Conn = conn
 	s.Control = make(chan string)
@@ -81,7 +83,7 @@ func (s *Session) InstallMessageGeneator(gen MessageGenerator) {
 		for {
 			select {
 			case <-ticker.C:
-				s.Sending <- gen.Generate(s.ID, s.GroupName, s.invocationId)
+				s.Sending <- gen.Generate(s.SendName, s.GroupName, s.invocationId)
 				s.invocationId++
 			case <-s.genClose:
 				return
