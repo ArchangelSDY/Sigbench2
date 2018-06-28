@@ -61,7 +61,7 @@ func (s *SignalrCoreCommon) Setup(config *Config, p ProtocolProcessing) error {
 	s.useWss = config.UseWss
 	s.sendSize = config.SendSize
 	s.counter = util.NewCounter()
-	s.sessions = make([]*Session, 0, 20000)
+	s.sessions = make([]*Session, 0, 30000)
 	s.received = make(chan MessageReceived)
 	if p.IsJson() {
 		s.JsonReceiveFuncs = make([]func(ProtocolProcessing, SignalRCoreInvocation, int64) bool, 0, 2)
