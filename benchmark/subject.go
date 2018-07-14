@@ -107,6 +107,7 @@ func (s *WithSessions) doEnsureConnection(count int, conPerSec int, builder func
 					wg.Done()
 					if err != nil {
 						log.Println("Fail to build connection: ", err)
+						return
 					}
 					s.sessions = append(s.sessions, session)
 				}()
