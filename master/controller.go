@@ -18,6 +18,7 @@ import (
 
 	"aspnet.com/agent"
 	"aspnet.com/benchmark"
+	"aspnet.com/metrics"
 )
 
 type AgentProxy struct {
@@ -95,6 +96,18 @@ func (c *Controller) printCounters(counters map[string]int64) {
 	for _, row := range table {
 		log.Println("    ", row[0], ": ", row[1])
 	}
+}
+
+func (c *Controller) collectMetrics() map[string]metrics.AgentMetrics {
+	results := make(map[string]metrics.AgentMetrics)
+	for _, agent := range c.Agents {
+		result := metrics.AgentMetrics{}
+		if err := agent.Client.Call("Agent.CollectMetrics", &struct{}{}, &result); err != nil {
+			log.Println("ERROR: Failed to list metrics from agent: ", agent.Address, err)
+		}
+		results[agent.Address] = result
+	}
+	return results
 }
 
 func (c *Controller) SplitNumber(total, index int) int {
@@ -229,6 +242,35 @@ func (c *Controller) watchCountersInternal(stopChan chan struct{}, snapshotWrite
 	}
 }
 
+func (c *Controller) watchMetrics(config *benchmark.Config) {
+	stopWatchMetricsChan := make(chan struct{})
+	registerStopChannels(stopWatchMetricsChan)
+	go c.watchMetricsInternal(stopWatchMetricsChan, func(data map[string]metrics.AgentMetrics) error {
+		if config.OutDir != "" {
+			SnapshotWriter := NewJsonSnapshotWriter(config.OutDir + "/metrics.txt")
+			if err := SnapshotWriter.WriteMetrics(time.Now(), data); err != nil {
+				log.Println("Error: fail to write metrics snapshot: ", err)
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (c *Controller) watchMetricsInternal(stopChan chan struct{}, snapshotWriter func(map[string]metrics.AgentMetrics) error) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			data := c.collectMetrics()
+			snapshotWriter(data)
+		case <-stopChan:
+			return
+		}
+	}
+}
+
 func (c *Controller) waitTimeoutOrComplete(parts []string, stop bool) error {
 	partsLen := len(parts)
 	if partsLen < 2 || partsLen > 3 {
@@ -287,69 +329,51 @@ func (c *Controller) batchRun(config *benchmark.Config) error {
 			continue
 		}
 		switch parts[0] {
-		case "r":
-			fallthrough
-		case "result":
+		case "r", "result":
 			c.printCounters(c.collectCounters())
-		case "cm":
-			fallthrough
-		case "ClearMessage":
+		case "cm", "ClearMessage":
 			c.doInvoke("Clear", "message")
-		case "wr":
-			fallthrough
-		case "WatchResult":
+		case "wr", "WatchResult":
 			c.watchCounters(config)
-		case "c":
-			fallthrough
-		case "EnsureConnection":
+		case "wm", "WatchMetrics":
+			c.watchMetrics(config)
+		case "c", "EnsureConnection":
 			err = c.connect(parts)
 			if err != nil {
 				fmt.Println(err)
 				return err
 			}
-		case "gs":
-			fallthrough
-		case "GroupSend":
+		case "gs", "GroupSend":
 			err = c.groupSend(parts)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-		case "s":
-			fallthrough
-		case "Send":
+		case "s", "Send":
 			err = c.send(parts)
 			if err != nil {
 				fmt.Println(err)
 				return err
 			}
-		case "wc":
-			fallthrough
-		case "WaitAndContinue":
+		case "wc", "WaitAndContinue":
 			err = c.waitTimeoutOrComplete(parts, false)
 			if err != nil {
 				fmt.Println(err)
 				return err
 			}
-		case "w":
-			fallthrough
-		case "Wait":
+		case "w", "Wait":
 			err = c.waitTimeoutOrComplete(parts, true)
 			if err != nil {
 				fmt.Println(err)
 				return err
 			}
-		case "jg":
-			fallthrough
-		case "JoinGroup":
+		case "jg", "JoinGroup":
 			err = c.joinGroup(parts)
 			if err != nil {
 				fmt.Println(err)
 				return err
 			}
-		case "lg":
-			fallthrough
-		case "LeaveGroup":
+		case "lg", "LeaveGroup":
 			err = c.leaveGroup()
 			if err != nil {
 				fmt.Println(err)
@@ -528,7 +552,6 @@ func (c *Controller) leaveGroup() error {
 	}
 	return nil
 }
-
 
 func (c *Controller) groupSend(parts []string) error {
 	return c.internalSend(parts, "GroupSend")

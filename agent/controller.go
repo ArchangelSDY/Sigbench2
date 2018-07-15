@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"aspnet.com/benchmark"
+	"aspnet.com/metrics"
 )
 
 // SubjectMap defines the mapping from a string name to the given testing subject implementation.
@@ -18,11 +19,11 @@ var SubjectMap = map[string]benchmark.Subject{
 	"signalr:msgpack:echo":      &benchmark.SignalrCoreMsgpackEcho{},
 	"signalr:msgpack:broadcast": &benchmark.SignalrCoreMsgpackBroadcast{},
 	// signalr service
-	"signalr:service:json:echo":           &benchmark.SignalrServiceJsonEcho{},
-	"signalr:service:msgpack:echo":        &benchmark.SignalrServiceMsgpackEcho{},
-	"signalr:service:json:broadcast":      &benchmark.SignalrServiceJsonBroadcast{},
-	"signalr:service:msgpack:broadcast":   &benchmark.SignalrServiceMsgpackBroadcast{},
-	"signalr:service:json:groupbroadcast": &benchmark.SignalrServiceJsonGroupBroadcast{},
+	"signalr:service:json:echo":              &benchmark.SignalrServiceJsonEcho{},
+	"signalr:service:msgpack:echo":           &benchmark.SignalrServiceMsgpackEcho{},
+	"signalr:service:json:broadcast":         &benchmark.SignalrServiceJsonBroadcast{},
+	"signalr:service:msgpack:broadcast":      &benchmark.SignalrServiceMsgpackBroadcast{},
+	"signalr:service:json:groupbroadcast":    &benchmark.SignalrServiceJsonGroupBroadcast{},
 	"signalr:service:msgpack:groupbroadcast": &benchmark.SignalrServiceMsgpackGroupBroadcast{},
 }
 
@@ -53,6 +54,15 @@ func (c *Controller) Setup(config *benchmark.Config, reply *struct{}) error {
 func (c *Controller) CollectCounters(args *struct{}, result *map[string]int64) error {
 	for k, v := range c.Subject.Counters() {
 		(*result)[k] += v
+	}
+	return nil
+}
+
+func (c *Controller) CollectMetrics(args *struct{}, result *metrics.AgentMetrics) error {
+	result = &metrics.AgentMetrics{
+		MachineMemoryUsage:      100,
+		MachineMemoryPercentage: 0.1,
+		MachineCPULoad:          0.5,
 	}
 	return nil
 }

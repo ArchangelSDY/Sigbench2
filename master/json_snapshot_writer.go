@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+
+	"aspnet.com/metrics"
 )
 
 type JsonSnapshotWriter struct {
@@ -21,16 +23,7 @@ type JsonSnapshotCountersRow struct {
 	Counters map[string]int64
 }
 
-func (w *JsonSnapshotWriter) WriteCounters(now time.Time, counters map[string]int64) error {
-	row := &JsonSnapshotCountersRow{
-		Time:     time.Now().Format(time.RFC3339),
-		Counters: counters,
-	}
-	data, err := json.Marshal(row)
-	if err != nil {
-		return err
-	}
-
+func (w *JsonSnapshotWriter) writeRow(data []byte) error {
 	f, err := os.OpenFile(w.filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
@@ -42,4 +35,35 @@ func (w *JsonSnapshotWriter) WriteCounters(now time.Time, counters map[string]in
 	f.Write(data)
 
 	return nil
+}
+
+func (w *JsonSnapshotWriter) WriteCounters(now time.Time, counters map[string]int64) error {
+	row := &JsonSnapshotCountersRow{
+		Time:     time.Now().Format(time.RFC3339),
+		Counters: counters,
+	}
+	data, err := json.Marshal(row)
+	if err != nil {
+		return err
+	}
+
+	return w.writeRow(data)
+}
+
+type JsonSnapshotMetricsRow struct {
+	Time    string
+	Metrics map[string]metrics.AgentMetrics
+}
+
+func (w *JsonSnapshotWriter) WriteMetrics(now time.Time, metrics map[string]metrics.AgentMetrics) error {
+	row := &JsonSnapshotMetricsRow{
+		Time:    time.Now().Format(time.RFC3339),
+		Metrics: metrics,
+	}
+	data, err := json.Marshal(row)
+	if err != nil {
+		return err
+	}
+
+	return w.writeRow(data)
 }
