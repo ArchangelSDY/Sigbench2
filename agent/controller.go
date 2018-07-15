@@ -59,10 +59,20 @@ func (c *Controller) CollectCounters(args *struct{}, result *map[string]int64) e
 }
 
 func (c *Controller) CollectMetrics(args *struct{}, result *metrics.AgentMetrics) error {
+	cpuLoad, err := metrics.GetCPULoad()
+	if err != nil {
+		return err
+	}
+
+	memUsage, err := metrics.GetMachineMemoryUsage()
+	if err != nil {
+		return err
+	}
+
 	result = &metrics.AgentMetrics{
-		MachineMemoryUsage:      100,
-		MachineMemoryPercentage: 0.1,
-		MachineCPULoad:          0.5,
+		MachineMemoryUsage:      memUsage.Total - memUsage.Available,
+		MachineMemoryPercentage: float64(memUsage.Total-memUsage.Available) / float64(memUsage.Total),
+		MachineCPULoad:          cpuLoad,
 	}
 	return nil
 }
