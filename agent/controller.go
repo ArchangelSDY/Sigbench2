@@ -13,6 +13,8 @@ import (
 
 // SubjectMap defines the mapping from a string name to the given testing subject implementation.
 var SubjectMap = map[string]benchmark.Subject{
+	// dummy
+	"dummy": &benchmark.Dummy{},
 	// signalr core
 	"signalr:json:echo":         &benchmark.SignalrCoreJsonEcho{},
 	"signalr:json:broadcast":    &benchmark.SignalrCoreJsonBroadcast{},
@@ -69,11 +71,10 @@ func (c *Controller) CollectMetrics(args *struct{}, result *metrics.AgentMetrics
 		return err
 	}
 
-	result = &metrics.AgentMetrics{
-		MachineMemoryUsage:      memUsage.Total - memUsage.Available,
-		MachineMemoryPercentage: float64(memUsage.Total-memUsage.Available) / float64(memUsage.Total),
-		MachineCPULoad:          cpuLoad,
-	}
+	result.MachineMemoryUsage = memUsage.Total - memUsage.Available
+	result.MachineMemoryPercentage = float64(memUsage.Total-memUsage.Available) / float64(memUsage.Total)
+	result.MachineCPULoad = cpuLoad
+
 	return nil
 }
 

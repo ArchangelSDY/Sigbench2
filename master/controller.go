@@ -110,6 +110,20 @@ func (c *Controller) collectMetrics() map[string]metrics.AgentMetrics {
 	return results
 }
 
+func (c *Controller) printMetrics(data map[string]metrics.AgentMetrics) {
+	hosts := make([]string, 0, len(data))
+	for host, _ := range data {
+		hosts = append(hosts, host)
+	}
+
+	sort.Strings(hosts)
+
+	log.Println("Metrics:")
+	for _, host := range hosts {
+		log.Printf("    %s: %+v\n", host, data[host])
+	}
+}
+
 func (c *Controller) SplitNumber(total, index int) int {
 	agentCount := len(c.Agents)
 	base := total / agentCount
@@ -406,47 +420,37 @@ func (c *Controller) interactiveRun() error {
 			continue
 		}
 		switch parts[0] {
-		case "r":
-			fallthrough
-		case "result":
+		case "r", "result":
 			c.printCounters(c.collectCounters())
+		case "m", "metrics":
+			c.printMetrics(c.collectMetrics())
 		case "v":
 			c.clearAndWaitAndDump(10)
-		case "c":
-			fallthrough
-		case "EnsureConnection":
+		case "c", "EnsureConnection":
 			err = c.connect(parts)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-		case "gs":
-			fallthrough
-		case "GroupSend":
+		case "gs", "GroupSend":
 			err = c.groupSend(parts)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-		case "s":
-			fallthrough
-		case "Send":
+		case "s", "Send":
 			err = c.send(parts)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-		case "jg":
-			fallthrough
-		case "JoinGroup":
+		case "jg", "JoinGroup":
 			err = c.joinGroup(parts)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-		case "lg":
-			fallthrough
-		case "LeaveGroup":
+		case "lg", "LeaveGroup":
 			err = c.leaveGroup()
 			if err != nil {
 				fmt.Println(err)
