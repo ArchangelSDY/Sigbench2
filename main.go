@@ -44,7 +44,7 @@ func startMaster() {
 
 	genPidFile("/tmp/websocket-bench-master.pid")
 
-	c := &master.Controller{}
+	c := master.NewController()
 
 	for _, address := range agentAddresses {
 		if err := c.RegisterAgent(address); err != nil {

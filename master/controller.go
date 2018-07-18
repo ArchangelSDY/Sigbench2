@@ -21,17 +21,29 @@ import (
 	"aspnet.com/metrics"
 )
 
+type AgentRole int
+
+const (
+	AgentRoleClient AgentRole = 1
+	AgentRoleCollector
+)
+
 type AgentProxy struct {
+	Name    string
 	Address string
 	Client  *rpc.Client
 }
 
 func NewAgentProxy(address string) (*AgentProxy, error) {
+	parts := strings.Split(address, ":")
+	name := parts[0]
+
 	client, err := rpc.DialHTTP("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 	proxy := &AgentProxy{
+		Name:    name,
 		Address: address,
 		Client:  client,
 	}
@@ -40,7 +52,25 @@ func NewAgentProxy(address string) (*AgentProxy, error) {
 
 // Controller stands for a master and manages all the agents.
 type Controller struct {
-	Agents []*AgentProxy
+	Agents     []*AgentProxy
+	AgentRoles map[string]AgentRole
+}
+
+func (c *Controller) clientAgents() []*AgentProxy {
+	clients := make([]*AgentProxy, 0, len(c.Agents))
+	for _, agent := range c.Agents {
+		if c.AgentRoles[agent.Name] == AgentRoleClient {
+			clients = append(clients, agent)
+		}
+	}
+	return clients
+}
+
+func (c *Controller) setAgentsRole(names []string, role AgentRole) {
+	log.Println("Setting", names, "as", role)
+	for _, name := range names {
+		c.AgentRoles[name] = role
+	}
 }
 
 func (c *Controller) RegisterAgent(address string) error {
@@ -49,6 +79,7 @@ func (c *Controller) RegisterAgent(address string) error {
 		return err
 	}
 	c.Agents = append(c.Agents, proxy)
+	c.AgentRoles[proxy.Name] = AgentRoleClient
 	return nil
 }
 
@@ -125,7 +156,7 @@ func (c *Controller) printMetrics(data map[string]metrics.AgentMetrics) {
 }
 
 func (c *Controller) SplitNumber(total, index int) int {
-	agentCount := len(c.Agents)
+	agentCount := len(c.clientAgents())
 	base := total / agentCount
 	if index < total%agentCount {
 		base++
@@ -162,6 +193,12 @@ var globalChannels []chan struct{}
 
 func registerStopChannels(ch chan struct{}) {
 	globalChannels = append(globalChannels, ch)
+}
+
+func NewController() *Controller {
+	return &Controller{
+		AgentRoles: make(map[string]AgentRole),
+	}
 }
 
 func (c *Controller) clearAllTask() {
@@ -456,6 +493,8 @@ func (c *Controller) interactiveRun() error {
 				fmt.Println(err)
 				break
 			}
+		case "Collector":
+			c.setAgentsRole(parts[1:], AgentRoleCollector)
 		default:
 			for _, agentProxy := range c.Agents {
 				err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
@@ -504,7 +543,7 @@ func (c *Controller) connect(parts []string) error {
 	}
 
 	var wg sync.WaitGroup
-	for i, agentProxy := range c.Agents {
+	for i, agentProxy := range c.clientAgents() {
 		agentConnection := c.SplitNumber(connection, i)
 		agentConnPerSec := c.SplitNumber(connPerSecond, i)
 		wg.Add(1)
@@ -532,7 +571,7 @@ func (c *Controller) joinGroup(parts []string) error {
 	if err != nil {
 		return fmt.Errorf("ERROR: ", err)
 	}
-	for _, agentProxy := range c.Agents {
+	for _, agentProxy := range c.clientAgents() {
 		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
 			Command:   "JoinGroup",
 			Arguments: []string{strconv.Itoa(members)},
@@ -545,7 +584,7 @@ func (c *Controller) joinGroup(parts []string) error {
 }
 
 func (c *Controller) leaveGroup() error {
-	for _, agentProxy := range c.Agents {
+	for _, agentProxy := range c.clientAgents() {
 		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
 			Command:   "LeaveGroup",
 			Arguments: []string{},
@@ -584,7 +623,7 @@ func (c *Controller) internalSend(parts []string, cmd string) error {
 	if clients < 0 {
 		clients = math.MaxInt32
 	}
-	for i, agentProxy := range c.Agents {
+	for i, agentProxy := range c.clientAgents() {
 		agentClients := c.SplitNumber(clients, i)
 		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
 			Command:   cmd,
