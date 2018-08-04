@@ -7,9 +7,9 @@ import (
 )
 
 type MachineMemoryUsage struct {
-	Total     uint64
-	Free      uint64
-	Available uint64
+	Total     int64
+	Free      int64
+	Available int64
 }
 
 func GetMachineMemoryUsage() (*MachineMemoryUsage, error) {
@@ -30,7 +30,7 @@ func GetMachineMemoryUsage() (*MachineMemoryUsage, error) {
 		value := strings.TrimSpace(fields[1])
 		value = strings.Replace(value, " kB", "", -1)
 
-		t, err := strconv.ParseUint(value, 10, 64)
+		t, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return nil, err
 		}

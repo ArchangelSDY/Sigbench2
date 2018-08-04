@@ -25,6 +25,9 @@ var opts struct {
 	CmdFile       string `short:"c" long:"cmd-file" description:"Command file"`
 	UseWss        bool   `short:"u" long:"use-security-connection" description:"wss connection"`
 	SendSize      int    `short:"b" long:"send-size" description:"send message size (byte), default is 0, 0 means: a shortID + timestamp" default:"0"`
+
+	InfluxDBAddr string `long:"influxdb-addr" description:"Output InfluxDB address"`
+	InfluxDBName string `long:"influxdb-name" description:"Output InfluxDB database name"`
 }
 
 func startMaster() {
@@ -44,7 +47,22 @@ func startMaster() {
 
 	genPidFile("/tmp/websocket-bench-master.pid")
 
-	c := master.NewController()
+	snapshotWriters := []master.SnapshotWriter{}
+	if opts.OutputDir != "" {
+		if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
+			log.Fatalln(err)
+		}
+		log.Println("Ouptut directory: ", opts.OutputDir)
+		snapshotWriters = append(snapshotWriters, master.NewJsonSnapshotWriter(
+			opts.OutputDir+"/counters.txt"))
+	}
+	if opts.InfluxDBAddr != "" && opts.InfluxDBName != "" {
+		log.Println("Write to InfluxDB", opts.InfluxDBAddr, opts.InfluxDBName)
+		snapshotWriters = append(snapshotWriters, master.NewInfluxDBSnapshotWriter(
+			opts.InfluxDBAddr, opts.InfluxDBName))
+	}
+
+	c := master.NewController(snapshotWriters)
 
 	for _, address := range agentAddresses {
 		if err := c.RegisterAgent(address); err != nil {
@@ -56,7 +74,6 @@ func startMaster() {
 		Host:     opts.Server,
 		Subject:  opts.Subject,
 		CmdFile:  opts.CmdFile,
-		OutDir:   opts.OutputDir,
 		UseWss:   opts.UseWss,
 		SendSize: opts.SendSize,
 	})

@@ -16,7 +16,6 @@ type Config struct {
 	Host     string
 	Subject  string
 	CmdFile  string
-	OutDir   string
 	UseWss   bool
 	SendSize int
 }

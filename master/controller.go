@@ -50,10 +50,16 @@ func NewAgentProxy(address string) (*AgentProxy, error) {
 	return proxy, nil
 }
 
+type SnapshotWriter interface {
+	WriteCounters(now time.Time, counters map[string]int64) error
+	WriteMetrics(now time.Time, metrics map[string]metrics.AgentMetrics) error
+}
+
 // Controller stands for a master and manages all the agents.
 type Controller struct {
-	Agents     []*AgentProxy
-	AgentRoles map[string]AgentRole
+	SnapshotWriters []SnapshotWriter
+	Agents          []*AgentProxy
+	AgentRoles      map[string]AgentRole
 }
 
 func (c *Controller) clientAgents() []*AgentProxy {
@@ -195,9 +201,10 @@ func registerStopChannels(ch chan struct{}) {
 	globalChannels = append(globalChannels, ch)
 }
 
-func NewController() *Controller {
+func NewController(snapshotWriters []SnapshotWriter) *Controller {
 	return &Controller{
-		AgentRoles: make(map[string]AgentRole),
+		SnapshotWriters: snapshotWriters,
+		AgentRoles:      make(map[string]AgentRole),
 	}
 }
 
@@ -267,9 +274,8 @@ func (c *Controller) watchCounters(config *benchmark.Config) {
 	stopWatchCounterChan := make(chan struct{})
 	registerStopChannels(stopWatchCounterChan)
 	go c.watchCountersInternal(stopWatchCounterChan, func(counters map[string]int64) error {
-		if config.OutDir != "" {
-			SnapshotWriter := NewJsonSnapshotWriter(config.OutDir + "/counters.txt")
-			if err := SnapshotWriter.WriteCounters(time.Now(), counters); err != nil {
+		for _, writer := range c.SnapshotWriters {
+			if err := writer.WriteCounters(time.Now(), counters); err != nil {
 				log.Println("Error: fail to write counter snapshot: ", err)
 				return err
 			}
@@ -297,9 +303,8 @@ func (c *Controller) watchMetrics(config *benchmark.Config) {
 	stopWatchMetricsChan := make(chan struct{})
 	registerStopChannels(stopWatchMetricsChan)
 	go c.watchMetricsInternal(stopWatchMetricsChan, func(data map[string]metrics.AgentMetrics) error {
-		if config.OutDir != "" {
-			SnapshotWriter := NewJsonSnapshotWriter(config.OutDir + "/metrics.txt")
-			if err := SnapshotWriter.WriteMetrics(time.Now(), data); err != nil {
+		for _, writer := range c.SnapshotWriters {
+			if err := writer.WriteMetrics(time.Now(), data); err != nil {
 				log.Println("Error: fail to write metrics snapshot: ", err)
 				return err
 			}
@@ -636,15 +641,6 @@ func (c *Controller) internalSend(parts []string, cmd string) error {
 	return nil
 }
 
-func (c *Controller) createOutDir(outDir string) {
-	if outDir != "" {
-		if err := os.MkdirAll(outDir, 0755); err != nil {
-			log.Fatalln(err)
-		}
-		log.Println("Ouptut directory: ", outDir)
-	}
-}
-
 func (c *Controller) Run(config *benchmark.Config) error {
 	if err := c.setupAgents(config); err != nil {
 		return err
@@ -658,7 +654,6 @@ func (c *Controller) Run(config *benchmark.Config) error {
 		os.Exit(1)
 	}()
 
-	c.createOutDir(config.OutDir)
 	if config.CmdFile == "" {
 		return c.interactiveRun()
 	} else {
