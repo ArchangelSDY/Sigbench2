@@ -54,7 +54,7 @@ func startMaster() {
 		}
 		log.Println("Ouptut directory: ", opts.OutputDir)
 		snapshotWriters = append(snapshotWriters, master.NewJsonSnapshotWriter(
-			opts.OutputDir+"/counters.txt"))
+			opts.OutputDir))
 	}
 	if opts.InfluxDBAddr != "" && opts.InfluxDBName != "" {
 		log.Println("Write to InfluxDB", opts.InfluxDBAddr, opts.InfluxDBName)

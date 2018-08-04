@@ -9,12 +9,12 @@ import (
 )
 
 type JsonSnapshotWriter struct {
-	filename string
+	outDir string
 }
 
-func NewJsonSnapshotWriter(filename string) *JsonSnapshotWriter {
+func NewJsonSnapshotWriter(outDir string) *JsonSnapshotWriter {
 	return &JsonSnapshotWriter{
-		filename: filename,
+		outDir: outDir,
 	}
 }
 
@@ -23,8 +23,8 @@ type JsonSnapshotCountersRow struct {
 	Counters map[string]int64
 }
 
-func (w *JsonSnapshotWriter) writeRow(data []byte) error {
-	f, err := os.OpenFile(w.filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+func (w *JsonSnapshotWriter) writeRow(filename string, data []byte) error {
+	f, err := os.OpenFile(w.outDir+"/"+filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (w *JsonSnapshotWriter) WriteCounters(now time.Time, counters map[string]in
 		return err
 	}
 
-	return w.writeRow(data)
+	return w.writeRow("counters.txt", data)
 }
 
 type JsonSnapshotMetricsRow struct {
@@ -65,5 +65,5 @@ func (w *JsonSnapshotWriter) WriteMetrics(now time.Time, metrics map[string]metr
 		return err
 	}
 
-	return w.writeRow(data)
+	return w.writeRow("metrics.txt", data)
 }
