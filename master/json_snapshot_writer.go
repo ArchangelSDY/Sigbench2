@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"time"
-
-	"aspnet.com/metrics"
 )
 
 type JsonSnapshotWriter struct {
@@ -52,10 +50,10 @@ func (w *JsonSnapshotWriter) WriteCounters(now time.Time, counters map[string]in
 
 type JsonSnapshotMetricsRow struct {
 	Time    string
-	Metrics map[string]metrics.AgentMetrics
+	Metrics []agentMetrics
 }
 
-func (w *JsonSnapshotWriter) WriteMetrics(now time.Time, metrics map[string]metrics.AgentMetrics) error {
+func (w *JsonSnapshotWriter) WriteMetrics(now time.Time, metrics []agentMetrics) error {
 	row := &JsonSnapshotMetricsRow{
 		Time:    time.Now().Format(time.RFC3339),
 		Metrics: metrics,

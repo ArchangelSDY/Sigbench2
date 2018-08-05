@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net"
@@ -31,16 +32,55 @@ var opts struct {
 	InfluxDBName string `long:"influxdb-name" description:"Output InfluxDB database name"`
 }
 
-func startMaster() {
-	agentAddresses := strings.Split(opts.Agents, ",")
-	if len(agentAddresses) <= 0 {
-		log.Fatalln("No agents specified")
+type agentConfig struct {
+	Host string
+	Role string
+}
+
+func parseAgentConfigs(data string) []agentConfig {
+	if _, err := os.Stat(data); os.IsNotExist(err) {
+		// Parameter is not a file path
+		hosts := strings.Split(data, ",")
+		cfgs := make([]agentConfig, 0, len(hosts))
+		for _, host := range hosts {
+			cfgs = append(cfgs, agentConfig{
+				Host: host,
+				Role: master.AgentRoleClient,
+			})
+		}
+		return cfgs
 	}
-	log.Println("Agents: ", agentAddresses)
 
-	collectorAddresses := strings.Split(opts.Collectors, ",")
-	log.Println("Collectors: ", collectorAddresses)
+	// Parameter is a file path
+	f, err := os.Open(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
 
+	cfgs := []agentConfig{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) != 2 {
+			log.Fatalf("Invalid agent config: %s", line)
+		}
+
+		cfgs = append(cfgs, agentConfig{
+			Host: parts[0],
+			Role: parts[1],
+		})
+	}
+
+	if err = scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	return cfgs
+}
+
+func startMaster() {
 	if opts.Server == "" {
 		log.Fatalln("Server host:port was not specified")
 	}
@@ -68,18 +108,16 @@ func startMaster() {
 
 	c := master.NewController(snapshotWriters)
 
-	for _, address := range agentAddresses {
-		if address != "" {
-			if err := c.RegisterAgent(address, master.AgentRoleClient); err != nil {
-				log.Fatalln("Failed to register agent: ", address, err)
-			}
-		}
+	agentCfgs := parseAgentConfigs(opts.Agents)
+	log.Println("Agent configs", agentCfgs)
+
+	if len(agentCfgs) == 0 {
+		log.Fatal("No agent defined")
 	}
-	for _, address := range collectorAddresses {
-		if address != "" {
-			if err := c.RegisterAgent(address, master.AgentRoleCollector); err != nil {
-				log.Fatalln("Failed to register agent: ", address, err)
-			}
+
+	for _, cfg := range agentCfgs {
+		if err := c.RegisterAgent(cfg.Host, cfg.Role); err != nil {
+			log.Fatalln("Failed to register agent: ", cfg.Host, cfg.Role, err)
 		}
 	}
 

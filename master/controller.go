@@ -21,11 +21,8 @@ import (
 	"aspnet.com/metrics"
 )
 
-type AgentRole int
-
 const (
-	AgentRoleClient AgentRole = 1
-	AgentRoleCollector
+	AgentRoleClient = "client"
 )
 
 type AgentProxy struct {
@@ -50,16 +47,22 @@ func NewAgentProxy(address string) (*AgentProxy, error) {
 	return proxy, nil
 }
 
+type agentMetrics struct {
+	Metrics   metrics.AgentMetrics
+	Agent     string
+	AgentRole string
+}
+
 type SnapshotWriter interface {
 	WriteCounters(now time.Time, counters map[string]int64) error
-	WriteMetrics(now time.Time, metrics map[string]metrics.AgentMetrics) error
+	WriteMetrics(now time.Time, metrics []agentMetrics) error
 }
 
 // Controller stands for a master and manages all the agents.
 type Controller struct {
 	SnapshotWriters []SnapshotWriter
 	Agents          []*AgentProxy
-	AgentRoles      map[string]AgentRole
+	AgentRoles      map[string]string
 }
 
 func (c *Controller) clientAgents() []*AgentProxy {
@@ -72,14 +75,7 @@ func (c *Controller) clientAgents() []*AgentProxy {
 	return clients
 }
 
-func (c *Controller) setAgentsRole(names []string, role AgentRole) {
-	log.Println("Setting", names, "as", role)
-	for _, name := range names {
-		c.AgentRoles[name] = role
-	}
-}
-
-func (c *Controller) RegisterAgent(address string, role AgentRole) error {
+func (c *Controller) RegisterAgent(address string, role string) error {
 	proxy, err := NewAgentProxy(address)
 	if err != nil {
 		return err
@@ -135,29 +131,26 @@ func (c *Controller) printCounters(counters map[string]int64) {
 	}
 }
 
-func (c *Controller) collectMetrics() map[string]metrics.AgentMetrics {
-	results := make(map[string]metrics.AgentMetrics)
+func (c *Controller) collectMetrics() []agentMetrics {
+	results := make([]agentMetrics, 0, len(c.Agents))
 	for _, agent := range c.Agents {
 		result := metrics.AgentMetrics{}
 		if err := agent.Client.Call("Agent.CollectMetrics", &struct{}{}, &result); err != nil {
 			log.Println("ERROR: Failed to list metrics from agent: ", agent.Address, err)
 		}
-		results[agent.Address] = result
+		results = append(results, agentMetrics{
+			Metrics:   result,
+			Agent:     agent.Name,
+			AgentRole: c.AgentRoles[agent.Name],
+		})
 	}
 	return results
 }
 
-func (c *Controller) printMetrics(data map[string]metrics.AgentMetrics) {
-	hosts := make([]string, 0, len(data))
-	for host, _ := range data {
-		hosts = append(hosts, host)
-	}
-
-	sort.Strings(hosts)
-
+func (c *Controller) printMetrics(data []agentMetrics) {
 	log.Println("Metrics:")
-	for _, host := range hosts {
-		log.Printf("    %s: %+v\n", host, data[host])
+	for _, row := range data {
+		log.Printf("    %s: %+v\n", row.Agent, row.Metrics)
 	}
 }
 
@@ -204,7 +197,7 @@ func registerStopChannels(ch chan struct{}) {
 func NewController(snapshotWriters []SnapshotWriter) *Controller {
 	return &Controller{
 		SnapshotWriters: snapshotWriters,
-		AgentRoles:      make(map[string]AgentRole),
+		AgentRoles:      make(map[string]string),
 	}
 }
 
@@ -302,7 +295,7 @@ func (c *Controller) watchCountersInternal(stopChan chan struct{}, snapshotWrite
 func (c *Controller) watchMetrics(config *benchmark.Config) {
 	stopWatchMetricsChan := make(chan struct{})
 	registerStopChannels(stopWatchMetricsChan)
-	go c.watchMetricsInternal(stopWatchMetricsChan, func(data map[string]metrics.AgentMetrics) error {
+	go c.watchMetricsInternal(stopWatchMetricsChan, func(data []agentMetrics) error {
 		for _, writer := range c.SnapshotWriters {
 			if err := writer.WriteMetrics(time.Now(), data); err != nil {
 				log.Println("Error: fail to write metrics snapshot: ", err)
@@ -313,7 +306,7 @@ func (c *Controller) watchMetrics(config *benchmark.Config) {
 	})
 }
 
-func (c *Controller) watchMetricsInternal(stopChan chan struct{}, snapshotWriter func(map[string]metrics.AgentMetrics) error) {
+func (c *Controller) watchMetricsInternal(stopChan chan struct{}, snapshotWriter func([]agentMetrics) error) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
@@ -498,8 +491,6 @@ func (c *Controller) interactiveRun() error {
 				fmt.Println(err)
 				break
 			}
-		case "Collector":
-			c.setAgentsRole(parts[1:], AgentRoleCollector)
 		default:
 			for _, agentProxy := range c.Agents {
 				err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{

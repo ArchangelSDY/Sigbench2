@@ -4,8 +4,6 @@ import (
 	"log"
 	"time"
 
-	"aspnet.com/metrics"
-
 	"github.com/influxdata/influxdb/client/v2"
 )
 
@@ -53,7 +51,7 @@ func (w *InfluxDBSnapshotWriter) WriteCounters(now time.Time, counters map[strin
 	return nil
 }
 
-func (w *InfluxDBSnapshotWriter) WriteMetrics(now time.Time, metrics map[string]metrics.AgentMetrics) error {
+func (w *InfluxDBSnapshotWriter) WriteMetrics(now time.Time, metrics []agentMetrics) error {
 	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 		Database:  w.db,
 		Precision: "s",
@@ -62,11 +60,12 @@ func (w *InfluxDBSnapshotWriter) WriteMetrics(now time.Time, metrics map[string]
 		return err
 	}
 
-	for agent, data := range metrics {
+	for _, m := range metrics {
 		tags := map[string]string{
-			"agent": agent,
+			"agent":     m.Agent,
+			"agentRole": m.AgentRole,
 		}
-		pt, err := client.NewPoint("metrics", tags, data.ToMap(), now)
+		pt, err := client.NewPoint("metrics", tags, m.Metrics.ToMap(), now)
 		if err != nil {
 			return err
 		}
