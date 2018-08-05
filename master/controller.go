@@ -103,11 +103,18 @@ func (c *Controller) setupAgents(config *benchmark.Config) error {
 
 func (c *Controller) collectCounters() map[string]int64 {
 	counters := make(map[string]int64)
+	resultsChan := make(chan map[string]int64, len(c.Agents))
 	for _, agent := range c.Agents {
-		result := make(map[string]int64)
-		if err := agent.Client.Call("Agent.CollectCounters", &struct{}{}, &result); err != nil {
-			log.Println("ERROR: Failed to list counters from agent: ", agent.Address, err)
-		}
+		go func() {
+			result := make(map[string]int64)
+			if err := agent.Client.Call("Agent.CollectCounters", &struct{}{}, &result); err != nil {
+				log.Println("ERROR: Failed to list counters from agent: ", agent.Address, err)
+			}
+			resultsChan <- result
+		}()
+	}
+	for i := 0; i < len(c.Agents); i++ {
+		result := <-resultsChan
 		for k, v := range result {
 			counters[k] += v
 		}
@@ -133,17 +140,24 @@ func (c *Controller) printCounters(counters map[string]int64) {
 
 func (c *Controller) collectMetrics() []agentMetrics {
 	results := make([]agentMetrics, 0, len(c.Agents))
+	resultsChan := make(chan agentMetrics, len(c.Agents))
 	for _, agent := range c.Agents {
-		result := metrics.AgentMetrics{}
-		if err := agent.Client.Call("Agent.CollectMetrics", &struct{}{}, &result); err != nil {
-			log.Println("ERROR: Failed to list metrics from agent: ", agent.Address, err)
-		}
-		results = append(results, agentMetrics{
-			Metrics:   result,
-			Agent:     agent.Name,
-			AgentRole: c.AgentRoles[agent.Name],
-		})
+		go func() {
+			result := metrics.AgentMetrics{}
+			if err := agent.Client.Call("Agent.CollectMetrics", &struct{}{}, &result); err != nil {
+				log.Println("ERROR: Failed to list metrics from agent: ", agent.Address, err)
+			}
+			resultsChan <- agentMetrics{
+				Metrics:   result,
+				Agent:     agent.Name,
+				AgentRole: c.AgentRoles[agent.Name],
+			}
+		}()
 	}
+	for i := 0; i < len(c.Agents); i++ {
+		results = append(results, <-resultsChan)
+	}
+
 	return results
 }
 
