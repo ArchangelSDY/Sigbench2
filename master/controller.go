@@ -79,13 +79,13 @@ func (c *Controller) setAgentsRole(names []string, role AgentRole) {
 	}
 }
 
-func (c *Controller) RegisterAgent(address string) error {
+func (c *Controller) RegisterAgent(address string, role AgentRole) error {
 	proxy, err := NewAgentProxy(address)
 	if err != nil {
 		return err
 	}
 	c.Agents = append(c.Agents, proxy)
-	c.AgentRoles[proxy.Name] = AgentRoleClient
+	c.AgentRoles[proxy.Name] = role
 	return nil
 }
 

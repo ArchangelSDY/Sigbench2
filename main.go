@@ -20,6 +20,7 @@ var opts struct {
 	OutputDir     string `short:"o" long:"output-dir" description:"Output directory" default:"output"`
 	ListenAddress string `short:"l" long:"listen-address" description:"Listen address" default:":7000"`
 	Agents        string `short:"a" long:"agents" description:"Agent addresses separated by comma"`
+	Collectors    string `long:"collectors" description:"Collector agent addresses separated by comma"`
 	Server        string `short:"s" long:"server" description:"Websocket server host:port"`
 	Subject       string `short:"t" long:"test-subject" description:"Test subject"`
 	CmdFile       string `short:"c" long:"cmd-file" description:"Command file"`
@@ -36,6 +37,9 @@ func startMaster() {
 		log.Fatalln("No agents specified")
 	}
 	log.Println("Agents: ", agentAddresses)
+
+	collectorAddresses := strings.Split(opts.Collectors, ",")
+	log.Println("Collectors: ", collectorAddresses)
 
 	if opts.Server == "" {
 		log.Fatalln("Server host:port was not specified")
@@ -65,8 +69,17 @@ func startMaster() {
 	c := master.NewController(snapshotWriters)
 
 	for _, address := range agentAddresses {
-		if err := c.RegisterAgent(address); err != nil {
-			log.Fatalln("Failed to register agent: ", address, err)
+		if address != "" {
+			if err := c.RegisterAgent(address, master.AgentRoleClient); err != nil {
+				log.Fatalln("Failed to register agent: ", address, err)
+			}
+		}
+	}
+	for _, address := range collectorAddresses {
+		if address != "" {
+			if err := c.RegisterAgent(address, master.AgentRoleCollector); err != nil {
+				log.Fatalln("Failed to register agent: ", address, err)
+			}
 		}
 	}
 
