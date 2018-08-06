@@ -60,9 +60,10 @@ type SnapshotWriter interface {
 
 // Controller stands for a master and manages all the agents.
 type Controller struct {
-	SnapshotWriters []SnapshotWriter
-	Agents          []*AgentProxy
-	AgentRoles      map[string]string
+	SnapshotWriters  []SnapshotWriter
+	Agents           []*AgentProxy
+	AgentRoles       map[string]string
+	CollectProcesses []string
 }
 
 func (c *Controller) clientAgents() []*AgentProxy {
@@ -141,18 +142,22 @@ func (c *Controller) printCounters(counters map[string]int64) {
 func (c *Controller) collectMetrics() []agentMetrics {
 	results := make([]agentMetrics, 0, len(c.Agents))
 	resultsChan := make(chan agentMetrics, len(c.Agents))
-	for _, agent := range c.Agents {
-		go func(agent *AgentProxy) {
-			result := metrics.AgentMetrics{}
-			if err := agent.Client.Call("Agent.CollectMetrics", &struct{}{}, &result); err != nil {
-				log.Println("ERROR: Failed to list metrics from agent: ", agent.Address, err)
+	for _, agentProxy := range c.Agents {
+		go func(agentProxy *AgentProxy) {
+			args := &agent.CollectMetricsArgs{
+				CollectProcesses: c.CollectProcesses,
 			}
+			result := metrics.AgentMetrics{}
+			if err := agentProxy.Client.Call("Agent.CollectMetrics", args, &result); err != nil {
+				log.Println("ERROR: Failed to list metrics from agent: ", agentProxy.Address, err)
+			}
+			log.Println(result)
 			resultsChan <- agentMetrics{
 				Metrics:   result,
-				Agent:     agent.Name,
-				AgentRole: c.AgentRoles[agent.Name],
+				Agent:     agentProxy.Name,
+				AgentRole: c.AgentRoles[agentProxy.Name],
 			}
-		}(agent)
+		}(agentProxy)
 	}
 	for i := 0; i < len(c.Agents); i++ {
 		results = append(results, <-resultsChan)

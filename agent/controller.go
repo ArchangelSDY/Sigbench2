@@ -60,7 +60,11 @@ func (c *Controller) CollectCounters(args *struct{}, result *map[string]int64) e
 	return nil
 }
 
-func (c *Controller) CollectMetrics(args *struct{}, result *metrics.AgentMetrics) error {
+type CollectMetricsArgs struct {
+	CollectProcesses []string
+}
+
+func (c *Controller) CollectMetrics(args *CollectMetricsArgs, result *metrics.AgentMetrics) error {
 	cpuLoad, err := metrics.GetCPULoad()
 	if err != nil {
 		return err
@@ -74,6 +78,12 @@ func (c *Controller) CollectMetrics(args *struct{}, result *metrics.AgentMetrics
 	result.MachineMemoryUsage = memUsage.Total - memUsage.Available
 	result.MachineMemoryPercentage = float64(memUsage.Total-memUsage.Available) / float64(memUsage.Total)
 	result.MachineCPULoad = cpuLoad
+
+	procMemUsages, err := metrics.GetProcessMemoryUsages(args.CollectProcesses)
+	if err != nil {
+		return err
+	}
+	result.ProcessMemoryUsages = procMemUsages
 
 	return nil
 }

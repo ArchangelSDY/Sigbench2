@@ -20,17 +20,18 @@ import (
 )
 
 var opts struct {
-	Mode          string `short:"m" long:"mode" description:"Run mode" default:"agent" choice:"agent" choice:"master" choice:"forwarder"`
-	OutputDir     string `short:"o" long:"output-dir" description:"Output directory" default:"output"`
-	ListenAddress string `short:"l" long:"listen-address" description:"Listen address" default:":7000"`
-	Agents        string `short:"a" long:"agents" description:"Agent addresses separated by comma"`
-	Collectors    string `long:"collectors" description:"Collector agent addresses separated by comma"`
-	Server        string `short:"s" long:"server" description:"Websocket server host:port"`
-	Subject       string `short:"t" long:"test-subject" description:"Test subject"`
-	CmdFile       string `short:"c" long:"cmd-file" description:"Command file"`
-	UseWss        bool   `short:"u" long:"use-security-connection" description:"wss connection"`
-	SendSize      int    `short:"b" long:"send-size" description:"send message size (byte), default is 0, 0 means: a shortID + timestamp" default:"0"`
-	ReverseAgent  bool   `short:"r" long:"reverse" description:"Reverse agent mode"`
+	Mode             string `short:"m" long:"mode" description:"Run mode" default:"agent" choice:"agent" choice:"master" choice:"forwarder"`
+	OutputDir        string `short:"o" long:"output-dir" description:"Output directory" default:"output"`
+	ListenAddress    string `short:"l" long:"listen-address" description:"Listen address" default:":7000"`
+	Agents           string `short:"a" long:"agents" description:"Agent addresses separated by comma"`
+	Collectors       string `long:"collectors" description:"Collector agent addresses separated by comma"`
+	CollectProcesses string `long:"collect-processes" description:"Process names to collect metrics data"`
+	Server           string `short:"s" long:"server" description:"Websocket server host:port"`
+	Subject          string `short:"t" long:"test-subject" description:"Test subject"`
+	CmdFile          string `short:"c" long:"cmd-file" description:"Command file"`
+	UseWss           bool   `short:"u" long:"use-security-connection" description:"wss connection"`
+	SendSize         int    `short:"b" long:"send-size" description:"send message size (byte), default is 0, 0 means: a shortID + timestamp" default:"0"`
+	ReverseAgent     bool   `short:"r" long:"reverse" description:"Reverse agent mode"`
 
 	InfluxDBAddr string `long:"influxdb-addr" description:"Output InfluxDB address"`
 	InfluxDBName string `long:"influxdb-name" description:"Output InfluxDB database name"`
@@ -127,6 +128,10 @@ func startMaster() {
 
 	if len(c.Agents) == 0 {
 		log.Fatal("No agent can be connected")
+	}
+
+	if opts.CollectProcesses != "" {
+		c.CollectProcesses = strings.Split(opts.CollectProcesses, ",")
 	}
 
 	c.Run(&benchmark.Config{
