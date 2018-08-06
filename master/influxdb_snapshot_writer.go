@@ -61,15 +61,29 @@ func (w *InfluxDBSnapshotWriter) WriteMetrics(now time.Time, metrics []agentMetr
 	}
 
 	for _, m := range metrics {
-		tags := map[string]string{
+		commonTags := map[string]string{
 			"agent":     m.Agent,
 			"agentRole": m.AgentRole,
 		}
-		pt, err := client.NewPoint("metrics", tags, m.Metrics.ToMap(), now)
+		pt, err := client.NewPoint("metrics", commonTags, m.Metrics.GetUntaggedMap(), now)
 		if err != nil {
 			return err
 		}
 		bp.AddPoint(pt)
+
+		taggedMaps, tags := m.Metrics.GetTaggedMap()
+		for i, m := range taggedMaps {
+			t := tags[i]
+			for k, v := range commonTags {
+				t[k] = v
+			}
+
+			pt, err := client.NewPoint("metrics", t, m, now)
+			if err != nil {
+				return err
+			}
+			bp.AddPoint(pt)
+		}
 	}
 
 	if err = w.client.Write(bp); err != nil {

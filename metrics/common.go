@@ -8,20 +8,28 @@ type AgentMetrics struct {
 	ProcessCPUUsages        []*ProcessCPUUsage
 }
 
-func (m *AgentMetrics) ToMap() map[string]interface{} {
-	ret := map[string]interface{}{
-		"machineMemoryUsage":      m.MachineMemoryUsage,
-		"machineMemoryPercentage": m.MachineMemoryPercentage,
-		"machineCPULoad":          m.MachineCPULoad,
+func (a *AgentMetrics) GetUntaggedMap() map[string]interface{} {
+	return map[string]interface{}{
+		"machineMemoryUsage":      a.MachineMemoryUsage,
+		"machineMemoryPercentage": a.MachineMemoryPercentage,
+		"machineCPULoad":          a.MachineCPULoad,
+	}
+}
+
+func (a *AgentMetrics) GetTaggedMap() ([]map[string]interface{}, []map[string]string) {
+	maps := make([]map[string]interface{}, 0, len(a.ProcessMemoryUsages))
+	tags := make([]map[string]string, 0, len(a.ProcessMemoryUsages))
+
+	for i, usage := range a.ProcessMemoryUsages {
+		m := make(map[string]interface{})
+		m["processMemoryRSS"] = usage.RSS
+		m["processCPUPercentage"] = a.ProcessCPUUsages[i].Percentage
+		maps = append(maps, m)
+
+		tags = append(tags, map[string]string{
+			"process": usage.Name,
+		})
 	}
 
-	for _, usage := range m.ProcessMemoryUsages {
-		ret["processMemoryRSS:"+usage.Name] = usage.RSS
-	}
-
-	for _, usage := range m.ProcessCPUUsages {
-		ret["processCPUPercentage:"+usage.Name] = usage.Percentage
-	}
-
-	return ret
+	return maps, tags
 }
