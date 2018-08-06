@@ -151,7 +151,6 @@ func (c *Controller) collectMetrics() []agentMetrics {
 			if err := agentProxy.Client.Call("Agent.CollectMetrics", args, &result); err != nil {
 				log.Println("ERROR: Failed to list metrics from agent: ", agentProxy.Address, err)
 			}
-			log.Println(result)
 			resultsChan <- agentMetrics{
 				Metrics:   result,
 				Agent:     agentProxy.Name,

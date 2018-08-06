@@ -85,6 +85,12 @@ func (c *Controller) CollectMetrics(args *CollectMetricsArgs, result *metrics.Ag
 	}
 	result.ProcessMemoryUsages = procMemUsages
 
+	procCPUUsages, err := metrics.GetProcessCPUUsages(args.CollectProcesses)
+	if err != nil {
+		return err
+	}
+	result.ProcessCPUUsages = procCPUUsages
+
 	return nil
 }
 

@@ -5,6 +5,7 @@ type AgentMetrics struct {
 	MachineMemoryPercentage float64
 	MachineCPULoad          float64
 	ProcessMemoryUsages     []*ProcessMemoryUsage
+	ProcessCPUUsages        []*ProcessCPUUsage
 }
 
 func (m *AgentMetrics) ToMap() map[string]interface{} {
@@ -16,6 +17,10 @@ func (m *AgentMetrics) ToMap() map[string]interface{} {
 
 	for _, usage := range m.ProcessMemoryUsages {
 		ret["processMemoryRSS:"+usage.Name] = usage.RSS
+	}
+
+	for _, usage := range m.ProcessCPUUsages {
+		ret["processCPUPercentage:"+usage.Name] = usage.Percentage
 	}
 
 	return ret
