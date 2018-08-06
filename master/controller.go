@@ -35,7 +35,7 @@ func NewAgentProxy(address string) (*AgentProxy, error) {
 	parts := strings.Split(address, ":")
 	name := parts[0]
 
-	client, err := rpc.DialHTTP("tcp", address)
+	client, err := rpc.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}

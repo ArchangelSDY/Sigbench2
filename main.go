@@ -9,15 +9,18 @@ import (
 	"net/rpc"
 	"os"
 	"strings"
+	"time"
 
 	"aspnet.com/agent"
 	"aspnet.com/benchmark"
+	"aspnet.com/forwarder"
 	"aspnet.com/master"
+
 	flags "github.com/jessevdk/go-flags"
 )
 
 var opts struct {
-	Mode          string `short:"m" long:"mode" description:"Run mode" default:"agent" choice:"agent" choice:"master"`
+	Mode          string `short:"m" long:"mode" description:"Run mode" default:"agent" choice:"agent" choice:"master" choice:"forwarder"`
 	OutputDir     string `short:"o" long:"output-dir" description:"Output directory" default:"output"`
 	ListenAddress string `short:"l" long:"listen-address" description:"Listen address" default:":7000"`
 	Agents        string `short:"a" long:"agents" description:"Agent addresses separated by comma"`
@@ -27,6 +30,7 @@ var opts struct {
 	CmdFile       string `short:"c" long:"cmd-file" description:"Command file"`
 	UseWss        bool   `short:"u" long:"use-security-connection" description:"wss connection"`
 	SendSize      int    `short:"b" long:"send-size" description:"send message size (byte), default is 0, 0 means: a shortID + timestamp" default:"0"`
+	ReverseAgent  bool   `short:"r" long:"reverse" description:"Reverse agent mode"`
 
 	InfluxDBAddr string `long:"influxdb-addr" description:"Output InfluxDB address"`
 	InfluxDBName string `long:"influxdb-name" description:"Output InfluxDB database name"`
@@ -117,8 +121,12 @@ func startMaster() {
 
 	for _, cfg := range agentCfgs {
 		if err := c.RegisterAgent(cfg.Host, cfg.Role); err != nil {
-			log.Fatalln("Failed to register agent: ", cfg.Host, cfg.Role, err)
+			log.Println("Failed to register agent: ", cfg.Host, cfg.Role, err)
 		}
+	}
+
+	if len(c.Agents) == 0 {
+		log.Fatal("No agent can be connected")
 	}
 
 	c.Run(&benchmark.Config{
@@ -143,16 +151,39 @@ func genPidFile(pidfile string) {
 		log.Println("Fail to write pidfile")
 	}
 }
+
 func startAgent() {
+	genPidFile("/tmp/websocket-bench.pid")
 	rpc.RegisterName("Agent", new(agent.Controller))
 	rpc.HandleHTTP()
-	l, err := net.Listen("tcp", opts.ListenAddress)
-	if err != nil {
-		log.Fatal("Failed to listen on "+opts.ListenAddress, err)
+	if !opts.ReverseAgent {
+		l, err := net.Listen("tcp", opts.ListenAddress)
+		if err != nil {
+			log.Fatal("Failed to listen on "+opts.ListenAddress, err)
+		}
+		log.Println("Listen on ", l.Addr())
+		http.Serve(l, nil)
+	} else {
+		for {
+			log.Println("Dialing to forwarder", opts.ListenAddress)
+			conn, err := net.Dial("tcp", opts.ListenAddress)
+			if err == nil {
+				log.Println("Connected")
+				rpc.ServeConn(conn)
+				conn.Close()
+			} else {
+				log.Println(err)
+				time.Sleep(5 * time.Second)
+			}
+		}
 	}
-	log.Println("Listen on ", l.Addr())
-	genPidFile("/tmp/websocket-bench.pid")
-	http.Serve(l, nil)
+}
+
+func startForwarder() {
+	f := forwarder.NewForwarder()
+	if err := f.Listen("0.0.0.0:7000", "localhost:7001"); err != nil {
+		log.Println(err)
+	}
 }
 
 func main() {
@@ -162,9 +193,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if opts.Mode == "master" {
+	switch opts.Mode {
+	case "master":
 		startMaster()
-	} else {
+	case "forwarder":
+		startForwarder()
+	default:
 		startAgent()
 	}
 }
