@@ -27,11 +27,12 @@ const (
 
 type AgentProxy struct {
 	Name    string
+	Role    string
 	Address string
 	Client  *rpc.Client
 }
 
-func NewAgentProxy(address string) (*AgentProxy, error) {
+func NewAgentProxy(address, role string) (*AgentProxy, error) {
 	parts := strings.Split(address, ":")
 	name := parts[0]
 
@@ -41,6 +42,7 @@ func NewAgentProxy(address string) (*AgentProxy, error) {
 	}
 	proxy := &AgentProxy{
 		Name:    name,
+		Role:    role,
 		Address: address,
 		Client:  client,
 	}
@@ -62,14 +64,13 @@ type SnapshotWriter interface {
 type Controller struct {
 	SnapshotWriters  []SnapshotWriter
 	Agents           []*AgentProxy
-	AgentRoles       map[string]string
 	CollectProcesses []string
 }
 
 func (c *Controller) clientAgents() []*AgentProxy {
 	clients := make([]*AgentProxy, 0, len(c.Agents))
 	for _, agent := range c.Agents {
-		if c.AgentRoles[agent.Name] == AgentRoleClient {
+		if agent.Role == AgentRoleClient {
 			clients = append(clients, agent)
 		}
 	}
@@ -77,25 +78,28 @@ func (c *Controller) clientAgents() []*AgentProxy {
 }
 
 func (c *Controller) RegisterAgent(address string, role string) error {
-	proxy, err := NewAgentProxy(address)
+	proxy, err := NewAgentProxy(address, role)
 	if err != nil {
 		return err
 	}
 	c.Agents = append(c.Agents, proxy)
-	c.AgentRoles[proxy.Name] = role
 	return nil
 }
 
 func (c *Controller) setupAgents(config *benchmark.Config) error {
 	var wg sync.WaitGroup
-	for _, agent := range c.Agents {
+	for _, agentProxy := range c.Agents {
 		wg.Add(1)
-		go func(agent *AgentProxy) {
-			if err := agent.Client.Call("Agent.Setup", config, &struct{}{}); err != nil {
+		go func(agentProxy *AgentProxy) {
+			var reply agent.SetupReply
+			if err := agentProxy.Client.Call("Agent.Setup", config, &reply); err != nil {
 				log.Fatalln(err)
 			}
+			if reply.AgentRole != "" {
+				agentProxy.Role = reply.AgentRole
+			}
 			wg.Done()
-		}(agent)
+		}(agentProxy)
 	}
 
 	wg.Wait()
@@ -154,7 +158,7 @@ func (c *Controller) collectMetrics() []agentMetrics {
 			resultsChan <- agentMetrics{
 				Metrics:   result,
 				Agent:     agentProxy.Name,
-				AgentRole: c.AgentRoles[agentProxy.Name],
+				AgentRole: agentProxy.Role,
 			}
 		}(agentProxy)
 	}
@@ -215,7 +219,6 @@ func registerStopChannels(ch chan struct{}) {
 func NewController(snapshotWriters []SnapshotWriter) *Controller {
 	return &Controller{
 		SnapshotWriters: snapshotWriters,
-		AgentRoles:      make(map[string]string),
 	}
 }
 

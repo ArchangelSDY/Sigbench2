@@ -31,7 +31,8 @@ var SubjectMap = map[string]benchmark.Subject{
 
 // Controller stands for a single agent and exposes management interfaces.
 type Controller struct {
-	Subject benchmark.Subject
+	AgentRole string
+	Subject   benchmark.Subject
 }
 
 // Invocation represents a command invocation from the master to the agent controller.
@@ -44,13 +45,23 @@ func argError(pos int, command string, expected string, given string) error {
 	return fmt.Errorf("The %dth argument for command '%s' is %s, but it cannot be parsed from '%s'", pos, command, expected, given)
 }
 
-func (c *Controller) Setup(config *benchmark.Config, reply *struct{}) error {
+type SetupReply struct {
+	AgentRole string
+}
+
+func (c *Controller) Setup(config *benchmark.Config, reply *SetupReply) error {
 	subject, ok := SubjectMap[config.Subject]
 	if !ok {
 		return fmt.Errorf("Cannot find subject: " + config.Subject)
 	}
 	c.Subject = subject
-	return c.Subject.Setup(config, subject)
+	if err := c.Subject.Setup(config, subject); err != nil {
+		return err
+	}
+
+	reply.AgentRole = c.AgentRole
+
+	return nil
 }
 
 func (c *Controller) CollectCounters(args *struct{}, result *map[string]int64) error {

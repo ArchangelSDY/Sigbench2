@@ -23,6 +23,7 @@ var opts struct {
 	OutputDir        string `short:"o" long:"output-dir" description:"Output directory" default:"output"`
 	ListenAddress    string `short:"l" long:"listen-address" description:"Listen address" default:":7000"`
 	Agents           string `short:"a" long:"agents" description:"Agent addresses separated by comma"`
+	Role             string `long:"role" description:"Agent role"`
 	Collectors       string `long:"collectors" description:"Collector agent addresses separated by comma"`
 	CollectProcesses string `long:"collect-processes" description:"Process names to collect metrics data"`
 	Server           string `short:"s" long:"server" description:"Websocket server host:port"`
@@ -158,7 +159,9 @@ func genPidFile(pidfile string) {
 
 func startAgent() {
 	genPidFile("/tmp/websocket-bench.pid")
-	rpc.RegisterName("Agent", new(agent.Controller))
+	rpc.RegisterName("Agent", &agent.Controller{
+		AgentRole: opts.Role,
+	})
 	if !opts.ReverseAgent {
 		l, err := net.Listen("tcp", opts.ListenAddress)
 		if err != nil {
