@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"aspnet.com/util"
@@ -163,14 +163,7 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 		return
 	}
 
-	var httpPrefix = regexp.MustCompile("^https?://")
-	var ws string
-	if s.useWss {
-		ws = "wss://"
-	} else {
-		ws = "ws://"
-	}
-	baseURL := httpPrefix.ReplaceAllString(handshake.ServiceUrl, ws)
+	baseURL := strings.Replace(handshake.ServiceUrl, "http", "ws", 1)
 	wsURL := baseURL + "&access_token=" + handshake.JwtBearer
 
 	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
