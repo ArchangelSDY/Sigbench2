@@ -90,17 +90,11 @@ func (c *Controller) CollectMetrics(args *CollectMetricsArgs, result *metrics.Ag
 	result.MachineMemoryPercentage = float64(memUsage.Total-memUsage.Available) / float64(memUsage.Total)
 	result.MachineCPULoad = cpuLoad
 
-	procMemUsages, err := metrics.GetProcessMemoryUsages(args.CollectProcesses)
+	procUsages, err := metrics.GetProcessResourceUsages(args.CollectProcesses)
 	if err != nil {
 		return err
 	}
-	result.ProcessMemoryUsages = procMemUsages
-
-	procCPUUsages, err := metrics.GetProcessCPUUsages(args.CollectProcesses)
-	if err != nil {
-		return err
-	}
-	result.ProcessCPUUsages = procCPUUsages
+	result.ProcessResourceUsages = procUsages
 
 	return nil
 }

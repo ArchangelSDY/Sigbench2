@@ -1,9 +1,7 @@
 package metrics
 
 import (
-	"bufio"
 	"io/ioutil"
-	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -48,49 +46,4 @@ func GetMachineMemoryUsage() (*MachineMemoryUsage, error) {
 	}
 
 	return &usage, nil
-}
-
-type ProcessMemoryUsage struct {
-	Name string
-	RSS  int64
-}
-
-func GetProcessMemoryUsages(names []string) ([]*ProcessMemoryUsage, error) {
-	usages := make([]*ProcessMemoryUsage, 0, len(names))
-	for _, name := range names {
-		usages = append(usages, &ProcessMemoryUsage{
-			Name: name,
-		})
-	}
-
-	out, err := exec.Command("ps", "-C", strings.Join(names, ","), "-o", "comm,rss", "--no-headers").Output()
-	if err != nil {
-		return usages, err
-	}
-
-	rssMap := make(map[string]int64)
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
-			continue
-		}
-		name := strings.TrimSpace(parts[0])
-		rssStr := strings.TrimSpace(parts[1])
-		rss, _ := strconv.ParseInt(rssStr, 10, 64)
-		if v, ok := rssMap[name]; ok {
-			rssMap[name] = v + rss
-		} else {
-			rssMap[name] = rss
-		}
-	}
-
-	for _, usage := range usages {
-		if rss, ok := rssMap[usage.Name]; ok {
-			usage.RSS = rss
-		}
-	}
-
-	return usages, nil
 }

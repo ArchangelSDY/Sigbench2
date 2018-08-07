@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 
+	"aspnet.com/metrics"
+
 	"github.com/influxdata/influxdb/client/v2"
 )
 
@@ -51,6 +53,39 @@ func (w *InfluxDBSnapshotWriter) WriteCounters(now time.Time, counters map[strin
 	return nil
 }
 
+func addAgentMetrics(bp client.BatchPoints, data *metrics.AgentMetrics, now time.Time, commonTags map[string]string) error {
+	fields := map[string]interface{}{
+		"machineMemoryUsage":      data.MachineMemoryUsage,
+		"machineMemoryPercentage": data.MachineMemoryPercentage,
+		"machineCPULoad":          data.MachineCPULoad,
+	}
+	pt, err := client.NewPoint("metrics", commonTags, fields, now)
+	if err != nil {
+		return err
+	}
+	bp.AddPoint(pt)
+	return nil
+}
+
+func addProcessMetrics(bp client.BatchPoints, data *metrics.ProcessResourceUsage, now time.Time, commonTags map[string]string) error {
+	fields := map[string]interface{}{
+		"processMemoryRSS":     data.MemoryRSS,
+		"processCPUPercentage": data.CPUPercentage,
+	}
+	tags := map[string]string{
+		"process": data.Name,
+	}
+	for k, v := range commonTags {
+		tags[k] = v
+	}
+	pt, err := client.NewPoint("metrics", tags, fields, now)
+	if err != nil {
+		return err
+	}
+	bp.AddPoint(pt)
+	return nil
+}
+
 func (w *InfluxDBSnapshotWriter) WriteMetrics(now time.Time, metrics []agentMetrics) error {
 	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 		Database:  w.db,
@@ -65,24 +100,11 @@ func (w *InfluxDBSnapshotWriter) WriteMetrics(now time.Time, metrics []agentMetr
 			"agent":     m.Agent,
 			"agentRole": m.AgentRole,
 		}
-		pt, err := client.NewPoint("metrics", commonTags, m.Metrics.GetUntaggedMap(), now)
-		if err != nil {
-			return err
-		}
-		bp.AddPoint(pt)
 
-		taggedMaps, tags := m.Metrics.GetTaggedMap()
-		for i, m := range taggedMaps {
-			t := tags[i]
-			for k, v := range commonTags {
-				t[k] = v
-			}
+		addAgentMetrics(bp, &m.Metrics, now, commonTags)
 
-			pt, err := client.NewPoint("metrics", t, m, now)
-			if err != nil {
-				return err
-			}
-			bp.AddPoint(pt)
+		for _, usage := range m.Metrics.ProcessResourceUsages {
+			addProcessMetrics(bp, usage, now, commonTags)
 		}
 	}
 
