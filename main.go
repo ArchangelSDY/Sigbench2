@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"net/rpc"
 	"os"
 	"strings"
@@ -160,14 +159,23 @@ func genPidFile(pidfile string) {
 func startAgent() {
 	genPidFile("/tmp/websocket-bench.pid")
 	rpc.RegisterName("Agent", new(agent.Controller))
-	rpc.HandleHTTP()
 	if !opts.ReverseAgent {
 		l, err := net.Listen("tcp", opts.ListenAddress)
 		if err != nil {
 			log.Fatal("Failed to listen on "+opts.ListenAddress, err)
 		}
 		log.Println("Listen on ", l.Addr())
-		http.Serve(l, nil)
+		for {
+			conn, err := l.Accept()
+			if err == nil {
+				log.Println("Accepted conn", conn.RemoteAddr())
+				rpc.ServeConn(conn)
+				log.Println("Ended conn", conn.RemoteAddr())
+				conn.Close()
+			} else {
+				log.Println(err)
+			}
+		}
 	} else {
 		for {
 			log.Println("Dialing to forwarder", opts.ListenAddress)
