@@ -63,9 +63,14 @@ func (f *Forwarder) handleAgentConnection(conn net.Conn) {
 		f.lock.Unlock()
 	}()
 
+	pr, pw := io.Pipe()
+	go func() {
+		io.Copy(pw, conn)
+		ln.Close()
+	}()
+
 	fconn, err := ln.Accept()
 	if err != nil {
-		log.Println("Error to accept new connection on", ln.Addr().String())
 		return
 	}
 	defer fconn.Close()
@@ -81,13 +86,11 @@ func (f *Forwarder) handleAgentConnection(conn net.Conn) {
 		c <- err
 	}()
 	go func() {
-		_, err := io.Copy(fconn, conn)
+		_, err := io.Copy(fconn, pr)
 		c <- err
 	}()
 
-	if err = <-c; err != nil && err != io.EOF {
-		log.Println("Err", err)
-	}
+	<-c
 }
 
 func (f *Forwarder) listenManagement(addr string) error {
