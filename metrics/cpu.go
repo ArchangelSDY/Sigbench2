@@ -47,6 +47,9 @@ func GetProcessCPUUsages(names []string) ([]*ProcessCPUUsage, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.SplitN(line, " ", 2)
+		if len(parts) < 2 {
+			continue
+		}
 		name := strings.TrimSpace(parts[0])
 		percentageStr := strings.TrimSpace(parts[1])
 		percentage, _ := strconv.ParseFloat(percentageStr, 64)

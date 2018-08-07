@@ -73,6 +73,9 @@ func GetProcessMemoryUsages(names []string) ([]*ProcessMemoryUsage, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.SplitN(line, " ", 2)
+		if len(parts) < 2 {
+			continue
+		}
 		name := strings.TrimSpace(parts[0])
 		rssStr := strings.TrimSpace(parts[1])
 		rss, _ := strconv.ParseInt(rssStr, 10, 64)
