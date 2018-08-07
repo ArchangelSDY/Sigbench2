@@ -37,7 +37,7 @@ func GetProcessCPUUsages(names []string) ([]*ProcessCPUUsage, error) {
 		})
 	}
 
-	out, err := exec.Command("ps", "-C", strings.Join(names, ","), "-o", "comm,%%cpu", "--no-headers").Output()
+	out, err := exec.Command("ps", "-C", strings.Join(names, ","), "-o", "comm,%cpu", "--no-headers").Output()
 	if err != nil {
 		return usages, err
 	}
