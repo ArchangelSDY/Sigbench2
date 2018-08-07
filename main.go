@@ -194,7 +194,11 @@ func startAgent() {
 
 func startForwarder() {
 	f := forwarder.NewForwarder()
-	if err := f.Listen("0.0.0.0:7000", "localhost:7001"); err != nil {
+	addrs := strings.Split(opts.ListenAddress, ",")
+	if len(addrs) < 2 {
+		log.Fatal("Invalid listen address", opts.ListenAddress)
+	}
+	if err := f.Listen(addrs[0], addrs[1]); err != nil {
 		log.Println(err)
 	}
 }
