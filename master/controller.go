@@ -143,10 +143,10 @@ func (c *Controller) printCounters(counters map[string]int64) {
 	}
 }
 
-func (c *Controller) collectMetrics() []agentMetrics {
-	results := make([]agentMetrics, 0, len(c.Agents))
-	resultsChan := make(chan agentMetrics, len(c.Agents))
+func (c *Controller) collectMetrics(w chan agentMetrics) {
+	var wg sync.WaitGroup
 	for _, agentProxy := range c.Agents {
+		wg.Add(1)
 		go func(agentProxy *AgentProxy) {
 			args := &agent.CollectMetricsArgs{
 				CollectProcesses: c.CollectProcesses,
@@ -155,18 +155,16 @@ func (c *Controller) collectMetrics() []agentMetrics {
 			if err := agentProxy.Client.Call("Agent.CollectMetrics", args, &result); err != nil {
 				log.Println("ERROR: Failed to list metrics from agent: ", agentProxy.Address, err)
 			}
-			resultsChan <- agentMetrics{
+			w <- agentMetrics{
 				Metrics:   result,
 				Agent:     agentProxy.Name,
 				AgentRole: agentProxy.Role,
 			}
+			wg.Done()
 		}(agentProxy)
 	}
-	for i := 0; i < len(c.Agents); i++ {
-		results = append(results, <-resultsChan)
-	}
-
-	return results
+	wg.Wait()
+	close(w)
 }
 
 func (c *Controller) printMetrics(data []agentMetrics) {
@@ -316,9 +314,9 @@ func (c *Controller) watchCountersInternal(stopChan chan struct{}, snapshotWrite
 func (c *Controller) watchMetrics(config *benchmark.Config) {
 	stopWatchMetricsChan := make(chan struct{})
 	registerStopChannels(stopWatchMetricsChan)
-	go c.watchMetricsInternal(stopWatchMetricsChan, func(data []agentMetrics) error {
+	go c.watchMetricsInternal(stopWatchMetricsChan, func(data agentMetrics) error {
 		for _, writer := range c.SnapshotWriters {
-			if err := writer.WriteMetrics(time.Now(), data); err != nil {
+			if err := writer.WriteMetrics(time.Now(), []agentMetrics{data}); err != nil {
 				log.Println("Error: fail to write metrics snapshot: ", err)
 				return err
 			}
@@ -327,14 +325,17 @@ func (c *Controller) watchMetrics(config *benchmark.Config) {
 	})
 }
 
-func (c *Controller) watchMetricsInternal(stopChan chan struct{}, snapshotWriter func([]agentMetrics) error) {
+func (c *Controller) watchMetricsInternal(stopChan chan struct{}, snapshotWriter func(agentMetrics) error) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			data := c.collectMetrics()
-			snapshotWriter(data)
+			w := make(chan agentMetrics, len(c.Agents))
+			c.collectMetrics(w)
+			for data := range w {
+				snapshotWriter(data)
+			}
 		case <-stopChan:
 			return
 		}
@@ -478,8 +479,8 @@ func (c *Controller) interactiveRun() error {
 		switch parts[0] {
 		case "r", "result":
 			c.printCounters(c.collectCounters())
-		case "m", "metrics":
-			c.printMetrics(c.collectMetrics())
+		// case "m", "metrics":
+		// 	c.printMetrics(c.collectMetrics())
 		case "v":
 			c.clearAndWaitAndDump(10)
 		case "c", "EnsureConnection":
