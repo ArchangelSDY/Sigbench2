@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -166,7 +167,18 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 	baseURL := strings.Replace(handshake.ServiceUrl, "http", "ws", 1)
 	wsURL := baseURL + "&access_token=" + handshake.JwtBearer
 
-	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	dialer := &websocket.Dialer{
+		NetDial: func(network, addr string) (net.Conn, error) {
+			start := time.Now()
+			conn, err := net.Dial(network, addr)
+			duration := time.Now().Sub(start) / time.Millisecond
+			s.LogLatency("dial", int64(duration))
+			return conn, err
+		},
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+	}
+	c, _, err := dialer.Dial(wsURL, nil)
 	if err != nil {
 		s.LogError("connection:error", id, "Failed to connect to websocket", err)
 		return
@@ -222,7 +234,7 @@ func (s *SignalrCoreCommon) ProcessJsonLatency(p ProtocolProcessing, content Sig
 		}
 		s.counter.Stat("message:received", 1)
 		s.counter.Stat("message:recvSize", recvSize)
-		s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+		s.LogLatency("message", (time.Now().UnixNano()-sendStart)/1000000)
 		return true
 	}
 	return false
@@ -286,7 +298,7 @@ func (s *SignalrCoreCommon) ProcessMsgPackLatency(p ProtocolProcessing, content 
 		}
 		s.counter.Stat("message:received", 1)
 		s.counter.Stat("message:recvSize", recvSize)
-		s.LogLatency((time.Now().UnixNano() - sendStart) / 1000000)
+		s.LogLatency("message", (time.Now().UnixNano()-sendStart)/1000000)
 		return true
 	}
 	return true

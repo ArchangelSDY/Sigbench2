@@ -52,12 +52,12 @@ func (w *WithCounter) LogError(errorGroup string, uid string, msg string, err er
 const LatencyStep int64 = 100
 const LatencyLength int = 10
 
-func (w *WithCounter) LogLatency(latency int64) {
+func (w *WithCounter) LogLatency(prefix string, latency int64) {
 	index := int(latency / LatencyStep)
 	if index >= LatencyLength {
-		w.Counter().Stat(fmt.Sprintf("message:ge:%d", LatencyLength*int(LatencyStep)), 1)
+		w.Counter().Stat(fmt.Sprintf("%s:ge:%d", prefix, LatencyLength*int(LatencyStep)), 1)
 	} else {
-		w.Counter().Stat(fmt.Sprintf("message:lt:%d00", index+1), 1)
+		w.Counter().Stat(fmt.Sprintf("%s:lt:%d00", prefix, index+1), 1)
 	}
 }
 
