@@ -102,6 +102,8 @@ func (s *WithSessions) doEnsureConnection(count int, conPerSec int, builder func
 			for i := 0; i < nextBatch; i++ {
 				wg.Add(1)
 				go func() {
+					// randomize the start time of connection
+					time.Sleep(time.Millisecond * time.Duration(rand.Int()%1000))
 					session, err := builder(s)
 					wg.Done()
 					if err != nil {
