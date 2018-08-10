@@ -73,6 +73,8 @@ func (s *TlsConnect) DoEnsureConnection(count int, conPerSec int) error {
 		for i := 0; i < nextBatch; i++ {
 			wg.Add(1)
 			go func() {
+				defer wg.Done()
+
 				// randomize the start time of connection
 				time.Sleep(time.Millisecond * time.Duration(rand.Int()%1000))
 
@@ -89,8 +91,6 @@ func (s *TlsConnect) DoEnsureConnection(count int, conPerSec int) error {
 				s.Counter().Stat("tls:inprogress", -1)
 				s.Counter().Stat("tls:connected", 1)
 				s.LogLatency("tls:dial", int64(time.Now().Sub(t)/time.Millisecond))
-
-				wg.Done()
 			}()
 		}
 		count -= nextBatch
