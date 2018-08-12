@@ -123,7 +123,8 @@ func (s *Session) sendingWorker() {
 			switch control {
 			case "close":
 				s.counter.Stat("connection:closing", 1)
-				s.sendMessage(CloseMessage{})
+				// s.sendMessage(CloseMessage{})
+				s.Conn.Close()
 				return
 			default:
 				log.Println("Received unhandled control message: ", control)
@@ -172,6 +173,5 @@ func (s *Session) Close() {
 		}
 	}()
 	s.RemoveMessageGenerator()
-	s.Conn.Close()
-	// s.Control <- "close"
+	s.Control <- "close"
 }
