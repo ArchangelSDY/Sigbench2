@@ -172,5 +172,6 @@ func (s *Session) Close() {
 		}
 	}()
 	s.RemoveMessageGenerator()
-	s.Control <- "close"
+	s.Conn.Close()
+	// s.Control <- "close"
 }

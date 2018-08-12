@@ -173,6 +173,11 @@ func (s *SignalrCoreCommon) SignalrServiceBaseConnect(protocol string) (session 
 			conn, err := net.Dial(network, addr)
 			duration := time.Now().Sub(start) / time.Millisecond
 			s.LogLatency("dial", int64(duration))
+
+			if e := conn.(*net.TCPConn).SetLinger(0); e != nil {
+				log.Println("Fail to set linger", e)
+			}
+
 			return conn, err
 		},
 		Proxy:            http.ProxyFromEnvironment,
