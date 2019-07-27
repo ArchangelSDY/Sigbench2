@@ -122,11 +122,13 @@ func (s *WithSessions) doEnsureConnection(count int, conPerSec int, builder func
 		wg.Wait()
 	} else {
 		log.Printf("Reduce clients count from %d to %d", len(s.sessions), count)
-		extra := s.sessions[count:]
-		s.sessions = s.sessions[:count]
-		for _, session := range extra {
+
+		// Evict oldest sessions
+		evictCount := -diff
+		for _, session := range s.sessions[0:evictCount] {
 			session.Close()
 		}
+		s.sessions = s.sessions[evictCount:]
 	}
 
 	return nil
