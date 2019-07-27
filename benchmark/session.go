@@ -19,7 +19,6 @@ type Session struct {
 	Control       chan string
 	Sending       chan Message
 	received      chan MessageReceived
-	States        chan string
 	recvHandShake bool
 	invocationId  int64
 	GroupName     string
@@ -43,7 +42,6 @@ func NewSession(id string, sendName string, received chan MessageReceived, count
 	s.Control = make(chan string)
 	s.Sending = make(chan Message)
 	s.received = received
-	s.States = make(chan string)
 	s.genLock = sync.Mutex{}
 	s.stateLock = sync.RWMutex{}
 	s.recvHandShake = false
@@ -161,15 +159,17 @@ func (s *Session) receivedWorker(id string) {
 			}
 			s.stateLock.RUnlock()
 
-			s.counter.Stat("connection:established", -1)
+			// s.counter.Stat("connection:established", -1)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+				// Unexpected close
 				log.Println("Failed to read incoming message:", err)
 				s.counter.Stat("message:receive_error", 1)
-				s.States <- "error"
+				s.Close()
 			} else {
-				s.counter.Stat("connection:closing", -1)
-				s.counter.Stat("connection:closed", 1)
-				s.States <- "closed"
+				// TODO: Expected close(Graceful)
+				log.Println("Expected close")
+				// s.counter.Stat("connection:closing", -1)
+				// s.counter.Stat("connection:closed", 1)
 			}
 			break
 		}
