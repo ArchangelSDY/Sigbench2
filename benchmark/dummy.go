@@ -52,6 +52,10 @@ func (s *Dummy) DoEnsureConnection(count int, conPerSec int) error {
 	return nil
 }
 
+func (s *Dummy) DoDisconnect(count int) error {
+	return nil
+}
+
 func (s *Dummy) DoGroupSend(clients int, intervalMillis int) error {
 	return nil
 }

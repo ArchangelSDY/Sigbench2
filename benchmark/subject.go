@@ -28,6 +28,7 @@ type Subject interface {
 	Counters() map[string]int64
 
 	DoEnsureConnection(count int, conPerSec int) error
+	DoDisconnect(count int) error
 	DoSend(clients int, intervalMillis int) error
 	DoGroupSend(clients int, intervalMillis int) error
 	DoJoinGroup(membersPerGroup int) error
@@ -201,6 +202,18 @@ func (s *WithSessions) doStopSendUnsafe() error {
 	for _, session := range s.sessions {
 		session.RemoveMessageGenerator()
 	}
+
+	return nil
+}
+
+func (s *WithSessions) DoDisconnect(count int) error {
+	s.sessionsLock.Lock()
+	defer s.sessionsLock.Unlock()
+
+	for i := 0; i < count; i++ {
+		s.sessions[i].Close()
+	}
+	s.sessions = s.sessions[count:]
 
 	return nil
 }

@@ -489,6 +489,12 @@ func (c *Controller) interactiveRun() error {
 				fmt.Println(err)
 				break
 			}
+		case "k", "Disconnect":
+			err = c.disconnect(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
 		case "gs", "GroupSend":
 			err = c.groupSend(parts)
 			if err != nil {
@@ -577,6 +583,27 @@ func (c *Controller) connect(parts []string) error {
 		}(agentProxy)
 	}
 	wg.Wait()
+	return nil
+}
+
+func (c *Controller) disconnect(parts []string) error {
+	partsLen := len(parts)
+	if partsLen < 2 {
+		return fmt.Errorf("SYNTAX: k <count>")
+	}
+	count, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return fmt.Errorf("ERROR: ", err)
+	}
+	for _, agentProxy := range c.clientAgents() {
+		err := agentProxy.Client.Call("Agent.Invoke", &agent.Invocation{
+			Command:   "Disconnect",
+			Arguments: []string{strconv.Itoa(count)},
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("ERROR[%s]: %v\n", agentProxy.Address, err)
+		}
+	}
 	return nil
 }
 
