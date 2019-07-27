@@ -29,6 +29,9 @@ type Session struct {
 
 	genLock  sync.Mutex
 	genClose chan struct{}
+
+	stateLock sync.RWMutex
+	closed    bool
 }
 
 func NewSession(id string, sendName string, received chan MessageReceived, counter *util.Counter, conn *websocket.Conn) *Session {
@@ -42,6 +45,7 @@ func NewSession(id string, sendName string, received chan MessageReceived, count
 	s.received = received
 	s.States = make(chan string)
 	s.genLock = sync.Mutex{}
+	s.stateLock = sync.RWMutex{}
 	s.recvHandShake = false
 	return s
 }
@@ -122,8 +126,17 @@ func (s *Session) sendingWorker() {
 		case control := <-s.Control:
 			switch control {
 			case "close":
-				s.counter.Stat("connection:closing", 1)
+				// TODO: Graceful close
+				// s.counter.Stat("connection:closing", 1)
 				// s.sendMessage(CloseMessage{})
+
+				// Force close
+				s.stateLock.Lock()
+				s.closed = true
+				s.stateLock.Unlock()
+
+				s.counter.Stat("connection:established", -1)
+				s.counter.Stat("connection:closed", 1)
 				s.Conn.Close()
 				return
 			default:
@@ -140,6 +153,14 @@ func (s *Session) receivedWorker(id string) {
 	for {
 		_, msg, err := s.Conn.ReadMessage()
 		if err != nil {
+			s.stateLock.RLock()
+			if s.closed {
+				log.Println("Ignore read error after close: ", err)
+				s.stateLock.RUnlock()
+				return
+			}
+			s.stateLock.RUnlock()
+
 			s.counter.Stat("connection:established", -1)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
 				log.Println("Failed to read incoming message:", err)
