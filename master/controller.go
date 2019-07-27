@@ -414,6 +414,12 @@ func (c *Controller) batchRun(config *benchmark.Config) error {
 				fmt.Println(err)
 				return err
 			}
+		case "k", "Disconnect":
+			err = c.disconnect(parts)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
 		case "gs", "GroupSend":
 			err = c.groupSend(parts)
 			if err != nil {
